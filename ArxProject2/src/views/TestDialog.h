@@ -111,4 +111,6 @@ private:
     // 辅助函数
     std::wstring CStringToWString(const CString& str);
     CString WStringToCString(const std::wstring& wstr);
+public:
+    afx_msg void OnStnClickedTitleLabel();
 };
