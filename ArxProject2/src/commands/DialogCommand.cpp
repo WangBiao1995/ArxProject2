@@ -259,9 +259,11 @@ void DialogCommand::executeCommand()
         
         // 测试数据库连接
         if (SqlDB::testDatabaseConnection()) {
-            CadLogger::LogInfo(_T("数据库连接正常!"));
+            acutPrintf(_T("\nDatabase connection is normal!\n"));
+            // CadLogger::LogInfo(_T("数据库连接正常!"));
         } else {
-            CadLogger::LogWarning(_T("数据库连接失败，但插件仍可正常使用!"));
+            acutPrintf(_T("\nDatabase connection failed, but plugin can still work normally!\n"));
+            // CadLogger::LogWarning(_T("数据库连接失败，但插件仍可正常使用!"));
         }
         
         g_dialogCommandInstance->showMainDialog();

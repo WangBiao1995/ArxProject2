@@ -82,7 +82,9 @@ bool SqlDB::initDatabase()
         }
         acutPrintf(_T("\nStep 4: SUCCESS\n"));
         
-        CadLogger::LogInfo(_T("PostgreSQL database connected successfully!"));
+        // 直接使用 acutPrintf 而不是 CadLogger
+        acutPrintf(_T("\nPostgreSQL database connected successfully!\n"));
+        // CadLogger::LogInfo(_T("PostgreSQL database connected successfully!"));
         return true;
         
     } catch (...) {
@@ -117,7 +119,9 @@ bool SqlDB::testDatabaseConnection()
             if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
                 ret = SQLGetData(hStmt, 1, SQL_C_WCHAR, version, sizeof(version), &indicator);
                 if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
-                    CadLogger::LogInfo(_T("数据库连接测试成功! PostgreSQL版本: %s"), version);
+                    // 直接使用 acutPrintf 而不是 CadLogger
+                    acutPrintf(_T("\nDatabase connection test successful! PostgreSQL version: %s\n"), version);
+                    // CadLogger::LogInfo(_T("数据库连接测试成功! PostgreSQL版本: %s"), version);
                 }
             }
             
