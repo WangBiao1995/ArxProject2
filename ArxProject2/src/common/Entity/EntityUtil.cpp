@@ -1,8 +1,7 @@
 ﻿// EntityUtil.cpp: implementation of the CEntityUtil class.
 //
 //////////////////////////////////////////////////////////////////////
-
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "EntityUtil.h"
 #include <gemat3d.h>
 #include "..\Others\ConvertUtil.h"

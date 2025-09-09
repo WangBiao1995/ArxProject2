@@ -1,8 +1,9 @@
-#include "../../stdafx.h"
-#include "../CadLogger.h"
+﻿#include "StdAfx.h"
 #include "SqlDB.h"
+#include "../CadLogger.h"
 #include <vector>
 #include <sstream>
+#include <tchar.h>
 
 // 静态成员变量定义
 SQLHENV SqlDB::m_hEnv = SQL_NULL_HENV;
@@ -20,43 +21,58 @@ SqlDB::~SqlDB()
 bool SqlDB::initDatabase()
 {
     try {
+        acutPrintf(_T("\n=== Starting database initialization ===\n"));
+        
         // 分配环境句柄
+        acutPrintf(_T("\nStep 1: Allocating environment handle...\n"));
         SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &m_hEnv);
         if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
-            CadLogger::LogError(_T("分配环境句柄失败"));
+            acutPrintf(_T("\nERROR: Failed to allocate environment handle\n"));
+            CadLogger::LogError(_T("Failed to allocate environment handle"));
             return false;
         }
+        acutPrintf(_T("\nStep 1: SUCCESS\n"));
         
         // 设置ODBC版本
+        acutPrintf(_T("\nStep 2: Setting ODBC version...\n"));
         ret = SQLSetEnvAttr(m_hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
         if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
-            CadLogger::LogError(_T("设置ODBC版本失败"));
+            acutPrintf(_T("\nERROR: Failed to set ODBC version\n"));
+            CadLogger::LogError(_T("Failed to set ODBC version"));
             SQLFreeHandle(SQL_HANDLE_ENV, m_hEnv);
             m_hEnv = SQL_NULL_HENV;
             return false;
         }
+        acutPrintf(_T("\nStep 2: SUCCESS\n"));
         
         // 分配连接句柄
+        acutPrintf(_T("\nStep 3: Allocating connection handle...\n"));
         ret = SQLAllocHandle(SQL_HANDLE_DBC, m_hEnv, &m_hDbc);
         if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
-            CadLogger::LogError(_T("分配连接句柄失败"));
+            acutPrintf(_T("\nERROR: Failed to allocate connection handle\n"));
+            CadLogger::LogError(_T("Failed to allocate connection handle"));
             SQLFreeHandle(SQL_HANDLE_ENV, m_hEnv);
             m_hEnv = SQL_NULL_HENV;
             return false;
         }
+        acutPrintf(_T("\nStep 3: SUCCESS\n"));
         
         // 设置连接超时
         SQLSetConnectAttr(m_hDbc, SQL_LOGIN_TIMEOUT, (SQLPOINTER)5, 0);
         
         // 连接到数据库
         // 这里使用PostgreSQL的ODBC连接字符串
+        acutPrintf(_T("\nStep 4: Connecting to database...\n"));
         std::wstring connStr = L"DRIVER={PostgreSQL Unicode};SERVER=localhost;PORT=5432;DATABASE=postgres;UID=postgres;PWD=1234;";
         
         ret = SQLDriverConnect(m_hDbc, NULL, (SQLWCHAR*)connStr.c_str(), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_NOPROMPT);
         
         if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
             std::wstring error = getLastError();
-            CadLogger::LogError(_T("数据库连接失败: %s"), error.c_str());
+            acutPrintf(_T("\nERROR: Database connection failed\n"));
+            acutPrintf(_T("Error details: %s\n"), error.c_str());
+            // 临时注释掉 CadLogger，直接使用 acutPrintf
+            // CadLogger::LogError(_T("Database connection failed: %s"), error.c_str());
             
             SQLFreeHandle(SQL_HANDLE_DBC, m_hDbc);
             SQLFreeHandle(SQL_HANDLE_ENV, m_hEnv);
@@ -64,8 +80,9 @@ bool SqlDB::initDatabase()
             m_hEnv = SQL_NULL_HENV;
             return false;
         }
+        acutPrintf(_T("\nStep 4: SUCCESS\n"));
         
-        CadLogger::LogInfo(_T("PostgreSQL 数据库连接成功!"));
+        CadLogger::LogInfo(_T("PostgreSQL database connected successfully!"));
         return true;
         
     } catch (...) {

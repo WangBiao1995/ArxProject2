@@ -1,8 +1,7 @@
 ﻿// HatchUtil.cpp: implementation of the CHatchUtil class.
 //
 //////////////////////////////////////////////////////////////////////
-
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "HatchUtil.h"
 #include <dbhatch.h>
 #include "..\Document\DwgDatabaseUtil.h"

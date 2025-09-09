@@ -2,13 +2,13 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "ViewUtil.h"
 #include <dbsymtb.h>
 #include "..\Others\ConvertUtil.h"
 #include <math.h>
 #include "..\Document\DwgDatabaseUtil.h"
-#include "Common\Geometry\GePointUtil.h"
+#include "..\Geometry\GePointUtil.h"
 
 #ifdef _DEBUG
 #undef THIS_FILE

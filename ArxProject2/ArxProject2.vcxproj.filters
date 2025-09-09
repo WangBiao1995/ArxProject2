@@ -51,57 +51,6 @@
     <ClCompile Include="src\common\Document\DwgDatabaseUtil.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="src\common\Entity\ArcUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Entity\BlockUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Entity\circleutil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Entity\DimensionUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Entity\EllipseUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Entity\EntityUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Entity\HatchUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Entity\LineUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Entity\PolylineUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Entity\RegionUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Entity\SplineUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Entity\TextUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Geometry\GePointUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Geometry\GeRectangleUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Geometry\MathUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Interaction\GetInputUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\Interaction\SelectUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="src\common\Others\ConvertUtil.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -109,15 +58,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\common\SheetManager\SheetFileManager.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\SymbolTable\LayerUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\SymbolTable\TextStyleUtil.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\common\SymbolTable\ViewUtil.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\common\CadLogger.cpp">
@@ -161,57 +101,6 @@
     <ClInclude Include="src\common\Document\DwgDatabaseUtil.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="src\common\Entity\ArcUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Entity\BlockUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Entity\circleutil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Entity\DimensionUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Entity\EllipseUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Entity\EntityUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Entity\HatchUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Entity\LineUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Entity\PolylineUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Entity\RegionUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Entity\SplineUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Entity\TextUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Geometry\GePointUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Geometry\GeRectangleUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Geometry\MathUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Interaction\GetInputUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\Interaction\SelectUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="src\common\Others\ConvertUtil.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -219,15 +108,6 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\common\SheetManager\SheetFileManager.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\SymbolTable\LayerUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\SymbolTable\TextStyleUtil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\common\SymbolTable\ViewUtil.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\common\CadLogger.h">
@@ -243,9 +123,6 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\services\SearchTextInDwg.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\stdafx.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

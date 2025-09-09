@@ -1,4 +1,4 @@
-﻿#include "../../stdafx.h"
+﻿#include "StdAfx.h"
 #include "FileDuplicateChecker.h"
 #include "../CadLogger.h"
 #include <shlobj.h>

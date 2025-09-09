@@ -2,7 +2,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "EllipseUtil.h"
 #include "..\Document\DwgDatabaseUtil.h"
 #include <dbelipse.h>

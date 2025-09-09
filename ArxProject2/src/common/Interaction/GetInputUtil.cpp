@@ -2,7 +2,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "GetInputUtil.h"
 #include "..\Others\ConvertUtil.h"
 #include <geassign.h>

@@ -26,7 +26,7 @@
 
 //-----------------------------------------------------------------------------
 #include "adui.h"
-
+#include "../../resource.h"
 //-----------------------------------------------------------------------------
 class BuildBuildingTableWindow : public CAdUiBaseDialog {
 	DECLARE_DYNAMIC (BuildBuildingTableWindow)

@@ -1,8 +1,7 @@
 ﻿// GePointUtil.cpp: implementation of the CGePointUtil class.
 //
 //////////////////////////////////////////////////////////////////////
-
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "GePointUtil.h"
 #include <complex>
 #include "MathUtil.h"

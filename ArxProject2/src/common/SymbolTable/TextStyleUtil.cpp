@@ -2,7 +2,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "TextStyleUtil.h"
 #include <dbsymtb.h>
 #include <acutmem.h>

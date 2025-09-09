@@ -1,8 +1,7 @@
 ﻿// SelectUtil.cpp: implementation of the CSelectUtil class.
 //
 //////////////////////////////////////////////////////////////////////
-
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "SelectUtil.h"
 #include <math.h>
 #include "..\Document\DwgDatabaseUtil.h"

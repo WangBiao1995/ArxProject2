@@ -23,7 +23,7 @@
 //----- BuildBuildingTableWindow.cpp : Implementation of BuildBuildingTableWindow
 //-----------------------------------------------------------------------------
 #include "StdAfx.h"
-#include "resource.h"
+#include "../../resource.h"
 #include "BuildBuildingTableWindow.h"
 
 //-----------------------------------------------------------------------------

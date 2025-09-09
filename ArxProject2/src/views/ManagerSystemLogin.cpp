@@ -23,7 +23,7 @@
 //----- ManagerSystemLogin.cpp : Implementation of ManagerSystemLogin
 //-----------------------------------------------------------------------------
 #include "StdAfx.h"
-#include "resource.h"
+#include "../../resource.h"
 #include "ManagerSystemLogin.h"
 
 //-----------------------------------------------------------------------------

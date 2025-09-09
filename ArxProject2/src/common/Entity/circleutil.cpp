@@ -1,8 +1,7 @@
 ﻿// circleutil.cpp: implementation of the CCircleUtil class.
 //
 //////////////////////////////////////////////////////////////////////
-
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "circleutil.h"
 #include <dbents.h>
 #include "..\Document\DwgDatabaseUtil.h"

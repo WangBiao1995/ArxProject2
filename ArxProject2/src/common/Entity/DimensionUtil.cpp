@@ -2,7 +2,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "DimensionUtil.h"
 #include <dbdim.h>
 #include "..\Document\DwgDatabaseUtil.h"

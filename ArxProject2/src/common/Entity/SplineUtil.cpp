@@ -1,8 +1,7 @@
 ﻿// SplineUtil.cpp: implementation of the CSplineUtil class.
 //
 //////////////////////////////////////////////////////////////////////
-
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "SplineUtil.h"
 #include <dbspline.h>
 #include "..\Document\DwgDatabaseUtil.h"

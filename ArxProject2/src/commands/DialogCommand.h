@@ -1,11 +1,11 @@
-#pragma once
+﻿#pragma once
 
 #include <afxwin.h>
 #include "../common/Database/SqlDB.h"
 
 // 前向声明MFC对话框类
-class CManagerSystemLogin;
-class CMainDialog;
+class ManagerSystemLogin;
+class CTestDialog;
 
 class DialogCommand
 {
@@ -28,8 +28,8 @@ public:
 private:
     bool showLoginDialog();
     bool showMainDialog();
-    void setupLoginConnections(CManagerSystemLogin* loginDialog);
+    void setupLoginConnections(ManagerSystemLogin* loginDialog);
     
-    CManagerSystemLogin* m_loginDialog;
-    CMainDialog* m_mainDialog;
+    ManagerSystemLogin* m_loginDialog;
+    CTestDialog* m_mainDialog;
 }; 

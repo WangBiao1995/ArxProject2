@@ -1,4 +1,4 @@
-#include "../stdafx.h"
+﻿#include "StdAfx.h"
 #include "DialogCommand.h"
 #include <afxwin.h>
 #include <winhttp.h>
@@ -6,6 +6,8 @@
 #include "aced.h"
 #include "../views/BuildBuildingTableWindow.h"
 #include "../views/SheetListWindow.h"
+#include "../views/ManagerSystemLogin.h"
+#include "../views/TestDialog.h"
 #include "../common/CadLogger.h"
 
 DialogCommand::DialogCommand()
@@ -29,55 +31,28 @@ DialogCommand::~DialogCommand()
 
 void DialogCommand::Init()
 {
-    // 初始化数据库连接
-    if (!SqlDB::initDatabase()) {
-        CadLogger::LogWarning(_T("数据库初始化失败，但插件仍可正常使用!"));
-    }
+    //// 初始化数据库连接
+    //if (!SqlDB::initDatabase()) {
+    //    CadLogger::LogWarning(_T("数据库初始化失败，但插件仍可正常使用!"));
+    //}
     
     // 注册DialogCommand的静态方法
     acedRegCmds->addCommand(
         _T("TST"),              // 命令组名
-        _T("ShowDialog"),       // 命令名
-        _T("ShowDialog"),       // 命令别名
+        _T("SheetManager"),       // 命令名
+        _T("SheetManager"),       // 命令别名
         ACRX_CMD_MODAL,         // 命令类型
         DialogCommand::executeCommand  // 直接指向DialogCommand的静态方法
     );
     
-    // 注册测试数据命令
-    acedRegCmds->addCommand(
-        _T("TST"),              // 命令组名
-        _T("TestData"),         // 命令名
-        _T("TestData"),         // 命令别名
-        ACRX_CMD_MODAL,         // 命令类型
-        DialogCommand::executeTestDataCommand  // 测试数据命令
-    );
-    
-    // 注册查询数据命令
-    acedRegCmds->addCommand(
-        _T("TST"),              // 命令组名
-        _T("QueryData"),        // 命令名
-        _T("QueryData"),        // 命令别名
-        ACRX_CMD_MODAL,         // 命令类型
-        DialogCommand::executeQueryDataCommand  // 查询数据命令
-    );
-    
-    // 注册文件上传测试命令
-    acedRegCmds->addCommand(
-        _T("TST"),              // 命令组名
-        _T("TestFileUpload"),   // 命令名
-        _T("TestFileUpload"),   // 命令别名
-        ACRX_CMD_MODAL,         // 命令类型
-        DialogCommand::executeFileUploadTestCommand  // 文件上传测试命令
-    );
-    
-    // 注册显示登录对话框测试命令
-    acedRegCmds->addCommand(
-        _T("TST"),              // 命令组名
-        _T("ShowLoginDialog"),  // 命令名
-        _T("ShowLoginDialog"),  // 命令别名
-        ACRX_CMD_MODAL,         // 命令类型
-        DialogCommand::executeShowLoginDialogCommand  // 显示登录对话框测试命令
-    );
+    //// 注册显示登录对话框测试命令
+    //acedRegCmds->addCommand(
+    //    _T("TST"),              // 命令组名
+    //    _T("ShowLoginDialog"),  // 命令名
+    //    _T("ShowLoginDialog"),  // 命令别名
+    //    ACRX_CMD_MODAL,         // 命令类型
+    //    DialogCommand::executeShowLoginDialogCommand  // 显示登录对话框测试命令
+    //);
 }
 
 void DialogCommand::UnLoad()
@@ -91,7 +66,7 @@ bool DialogCommand::showLoginDialog()
     try {
         // 创建登录对话框实例
         if (!m_loginDialog) {
-            m_loginDialog = new CManagerSystemLogin();
+            m_loginDialog = new ManagerSystemLogin();
             if (!m_loginDialog) {
                 CadLogger::LogError(_T("创建登录对话框失败!"));
                 return false;
@@ -138,62 +113,101 @@ bool DialogCommand::showLoginDialog()
 bool DialogCommand::showMainDialog()
 {
     try {
-        // 创建主对话框实例
-        if (!m_mainDialog) {
-            m_mainDialog = new CMainDialog();
-            if (!m_mainDialog) {
-                CadLogger::LogError(_T("创建主对话框失败!"));
-                return false;
-            }
-        }
-
-        // 获取AutoCAD主窗口句柄
-        HWND acadMainWnd = adsw_acadMainWnd();
+        //必须添加，防止资源调用冲突
+        CAcModuleResourceOverride resOverrid;
         
-        // 设置父窗口为AutoCAD主窗口
-        if (acadMainWnd) {
-            ::SetParent(m_mainDialog->GetSafeHwnd(), acadMainWnd);
+        // 检查是否已经有非模态对话框实例存在
+        if (CTestDialog::s_pModelessDialog != nullptr) {
+            // 如果已存在，激活并显示该对话框
+            CTestDialog::s_pModelessDialog->ShowWindow(SW_SHOW);
+            CTestDialog::s_pModelessDialog->SetForegroundWindow();
+            // 暂时移除中文日志，避免编码问题
+            // CadLogger::LogInfo(_T("图纸管理界面已经打开，将其置于前台"));
+            acutPrintf(_T("\nSheet Manager dialog is already open, bringing to front\n"));
+            return true;
         }
 
-        // 获取AutoCAD窗口的几何信息
-        if (acadMainWnd) {
-            RECT acadRect;
-            GetWindowRect(acadMainWnd, &acadRect);
-
-            // 计算对话框在右侧的位置
-            CRect dialogRect;
-            m_mainDialog->GetWindowRect(&dialogRect);
+        // 创建非模态对话框
+        CTestDialog* pDlg = new CTestDialog();
+        if (pDlg->Create(CTestDialog::IDD, acedGetAcadFrame())) {
+            // 设置静态指针
+            CTestDialog::s_pModelessDialog = pDlg;
             
-            int x = acadRect.right - dialogRect.Width();  // 右侧对齐
-            int y = acadRect.top + 100;  // 距离顶部100像素
-
-            // 设置对话框位置
-            m_mainDialog->SetWindowPos(&CWnd::wndTopMost, x, y, 0, 0, SWP_NOSIZE);
+            // 获取AutoCAD主窗口句柄
+            HWND acadMainWnd = acedGetAcadFrame()->GetSafeHwnd();
+            
+            if (acadMainWnd) {
+                // 获取AutoCAD窗口矩形
+                RECT acadRect;
+                GetWindowRect(acadMainWnd, &acadRect);
+                
+                // 获取对话框矩形
+                CRect dialogRect;
+                pDlg->GetWindowRect(&dialogRect);
+                
+                // 计算对话框在CAD窗口右侧居中的位置
+                int dialogWidth = dialogRect.Width();
+                int dialogHeight = dialogRect.Height();
+                int acadWidth = acadRect.right - acadRect.left;
+                int acadHeight = acadRect.bottom - acadRect.top;
+                
+                // X坐标：CAD窗口右边减去对话框宽度，再减去一些边距
+                int x = acadRect.right - dialogWidth - 20; // 20像素边距
+                
+                // Y坐标：CAD窗口垂直居中
+                int y = acadRect.top + (acadHeight - dialogHeight) / 2;
+                
+                // 确保对话框不会超出屏幕边界
+                RECT screenRect;
+                SystemParametersInfo(SPI_GETWORKAREA, 0, &screenRect, 0);
+                
+                // 调整X坐标，确保对话框完全在屏幕内
+                if (x + dialogWidth > screenRect.right) {
+                    x = screenRect.right - dialogWidth - 10;
+                }
+                if (x < screenRect.left) {
+                    x = screenRect.left + 10;
+                }
+                
+                // 调整Y坐标，确保对话框完全在屏幕内
+                if (y + dialogHeight > screenRect.bottom) {
+                    y = screenRect.bottom - dialogHeight - 10;
+                }
+                if (y < screenRect.top) {
+                    y = screenRect.top + 10;
+                }
+                
+                // 设置对话框位置
+                pDlg->SetWindowPos(nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+            }
+            
+            pDlg->ShowWindow(SW_SHOW);
+            // 暂时使用英文日志，避免编码问题
+            // CadLogger::LogInfo(_T("图纸管理界面已创建并显示在CAD窗口右侧"));
+            acutPrintf(_T("\nSheet Manager dialog created and positioned on right side of CAD window\n"));
+            return true;
+        } else {
+            delete pDlg;
+            // CadLogger::LogError(_T("创建图纸管理界面失败"));
+            acutPrintf(_T("\nFailed to create Sheet Manager dialog\n"));
+            return false;
         }
-
-        // 显示非模态对话框
-        if (m_mainDialog->GetSafeHwnd() == nullptr) {
-            m_mainDialog->Create(IDD_MAIN_DIALOG, CWnd::FromHandle(acadMainWnd));
-        }
-        m_mainDialog->ShowWindow(SW_SHOW);
-        
-        CadLogger::LogInfo(_T("图纸管理界面已显示在CAD右侧!"));
-        return true;
 
     }
     catch (...) {
-        CadLogger::LogError(_T("显示主对话框时发生异常!"));
+        // CadLogger::LogError(_T("显示主对话框时发生异常!"));
+        acutPrintf(_T("\nException occurred while showing main dialog\n"));
         return false;
     }
 }
 
-void DialogCommand::setupLoginConnections(CManagerSystemLogin* loginDialog)
+void DialogCommand::setupLoginConnections(ManagerSystemLogin* loginDialog)
 {
     if (!loginDialog) return;
     
     // MFC中通过设置回调指针或消息映射来处理事件
     // 这里可以设置回调函数指针或使用Windows消息机制
-    loginDialog->SetCallbackObject(this);
+    // loginDialog->SetCallbackObject(this);  // 需要在ManagerSystemLogin中实现此方法
 }
 
 void DialogCommand::onLoginSuccess()

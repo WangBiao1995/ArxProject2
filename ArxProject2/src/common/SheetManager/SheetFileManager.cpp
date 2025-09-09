@@ -1,4 +1,4 @@
-﻿#include "../../stdafx.h"
+﻿#include "StdAfx.h"
 #include "SheetFileManager.h"
 #include "../../views/SheetListWindow.h"
 #include "../../services/SearchTextInDwg.h"

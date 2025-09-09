@@ -25,6 +25,7 @@
 #include "StdAfx.h"
 #include "resource.h"
 #include "src/views/TestDialog.h"
+#include "src/commands/DialogCommand.h"
 
 //-----------------------------------------------------------------------------
 #define szRDS _RXST("TST")
@@ -42,6 +43,7 @@ public:
 		// You *must* call On_kInitAppMsg here
 		AcRx::AppRetCode retCode =AcRxArxApp::On_kInitAppMsg (pkt) ;
 		
+		DialogCommand::Init();
 		// TODO: Add your initialization code here
 
 		return (retCode) ;
@@ -54,6 +56,7 @@ public:
 		AcRx::AppRetCode retCode =AcRxArxApp::On_kUnloadAppMsg (pkt) ;
 
 		// TODO: Unload dependencies here
+		DialogCommand::UnLoad();
 
 		return (retCode) ;
 	}

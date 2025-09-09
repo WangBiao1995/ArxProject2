@@ -1,4 +1,4 @@
-#include "../stdafx.h"
+﻿#include "StdAfx.h"
 #include "CadLogger.h"
 
 void CadLogger::Log(LogLevel level, const TCHAR* format, ...)
@@ -11,14 +11,15 @@ void CadLogger::Log(LogLevel level, const TCHAR* format, ...)
 
 	switch (level) {
 	case LOG_INFO:
-		acutPrintf(_T("\n[信息] %s\n"), buffer);
+		acutPrintf(_T("\n[INFO] %s\n"), buffer);
 		break;
 	case LOG_WARNING:
-		acutPrintf(_T("\n[警告] %s\n"), buffer);
+		acutPrintf(_T("\n[WARNING] %s\n"), buffer);
 		break;
 	case LOG_ERROR:
-		acutPrintf(_T("\n[错误] %s\n"), buffer);
-		acedAlert(buffer);
+		acutPrintf(_T("\n[ERROR] %s\n"), buffer);
+		// 临时注释掉 acedAlert，避免乱码弹窗
+		// acedAlert(buffer);
 		break;
 	}
 }

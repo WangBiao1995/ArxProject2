@@ -26,7 +26,7 @@
 
 //-----------------------------------------------------------------------------
 #include "adui.h"
-
+#include "../../resource.h"
 //-----------------------------------------------------------------------------
 class ManagerSystemLogin : public CAdUiBaseDialog {
 	DECLARE_DYNAMIC (ManagerSystemLogin)

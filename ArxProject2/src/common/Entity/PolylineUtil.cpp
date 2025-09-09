@@ -1,8 +1,7 @@
 ﻿// PolylineUtil.cpp: implementation of the CPolylineUtil class.
 //
 //////////////////////////////////////////////////////////////////////
-
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "PolylineUtil.h"
 #include <dbpl.h>
 #include "..\Document\DwgDatabaseUtil.h"

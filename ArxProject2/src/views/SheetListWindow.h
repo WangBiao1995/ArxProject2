@@ -25,8 +25,8 @@
 #pragma once
 
 //-----------------------------------------------------------------------------
+#include "../../resource.h"
 #include "adui.h"
-
 //-----------------------------------------------------------------------------
 class SheetListWindow : public CAdUiBaseDialog {
 	DECLARE_DYNAMIC (SheetListWindow)

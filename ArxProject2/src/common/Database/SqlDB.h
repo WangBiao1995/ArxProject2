@@ -1,4 +1,7 @@
-#pragma once
+﻿#pragma once
+
+// 解决编码警告
+#pragma warning(disable: 4819)
 
 #include <string>
 #include <vector>

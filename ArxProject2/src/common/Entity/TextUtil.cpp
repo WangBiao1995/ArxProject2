@@ -2,7 +2,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "TextUtil.h"
 #include <dbents.h>
 #include "..\Document\DwgDatabaseUtil.h"
