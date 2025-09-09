@@ -31,10 +31,10 @@ DialogCommand::~DialogCommand()
 
 void DialogCommand::Init()
 {
-    //// 初始化数据库连接
-    //if (!SqlDB::initDatabase()) {
-    //    CadLogger::LogWarning(_T("数据库初始化失败，但插件仍可正常使用!"));
-    //}
+    // 初始化数据库连接
+    if (!SqlDB::initDatabase()) {
+        acutPrintf(_T("数据库初始化失败，但插件仍可正常使用!"));
+    }
     
     // 注册DialogCommand的静态方法
     acedRegCmds->addCommand(

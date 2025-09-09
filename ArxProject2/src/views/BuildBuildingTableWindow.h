@@ -1,4 +1,4 @@
-﻿// (C) Copyright 2002-2007 by Autodesk, Inc. 
+﻿    // (C) Copyright 2002-2007 by Autodesk, Inc. 
 //
 // Permission to use, copy, modify, and distribute this software in
 // object code form for any purpose and without fee is hereby granted, 
@@ -62,12 +62,16 @@ public:
 protected:
     virtual void DoDataExchange(CDataExchange *pDX);
     virtual BOOL OnInitDialog();
+    virtual BOOL PreTranslateMessage(MSG* pMsg);  // 添加这行
     afx_msg LRESULT OnAcadKeepFocus(WPARAM, LPARAM);
     afx_msg void OnBnClickedFilterButton();
     afx_msg void OnBnClickedResetFilterButton();
     afx_msg void OnBnClickedSaveButton();
     afx_msg void OnNMRClickBuildingTable(NMHDR *pNMHDR, LRESULT *pResult);
     afx_msg void OnLvnEndlabeleditBuildingTable(NMHDR *pNMHDR, LRESULT *pResult);
+    afx_msg void OnNMDblclkBuildingTable(NMHDR *pNMHDR, LRESULT *pResult);
+    afx_msg void OnLvnKeydownBuildingTable(NMHDR *pNMHDR, LRESULT *pResult);
+    afx_msg void OnLvnItemchangedBuildingTable(NMHDR *pNMHDR, LRESULT *pResult);  // 添加这行
     afx_msg void OnSize(UINT nType, int cx, int cy);
 
     DECLARE_MESSAGE_MAP()
@@ -81,6 +85,11 @@ private:
     CEdit m_buildingNameEdit;
     CEdit m_designUnitEdit;
     CDateTimeCtrl m_createTimePicker;
+    
+    // 添加用于编辑的控件
+    CEdit* m_pEditCtrl;          // 编辑控件指针
+    int m_nEditItem;             // 正在编辑的行
+    int m_nEditSubItem;          // 正在编辑的列
     
     // 数据管理
     std::vector<BuildingData> m_buildingDataList;
@@ -99,7 +108,13 @@ private:
     bool insertBuildingData(const BuildingData& data);
     void populateTableFromData();
     void resizeControls(int cx, int cy);
+    void adjustFilterControls(int cx);
     std::wstring getCurrentTimeString();
+    
+    // 添加编辑相关方法
+    void startEdit(int nItem, int nSubItem);
+    void endEdit(bool bSave);
+    CEdit* createEditControl(int nItem, int nSubItem);
     
     // 禁用拷贝构造函数和赋值操作符
     BuildBuildingTableWindow(const BuildBuildingTableWindow&);

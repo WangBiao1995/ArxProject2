@@ -43,6 +43,9 @@ BEGIN_MESSAGE_MAP(BuildBuildingTableWindow, CAdUiBaseDialog)
     ON_BN_CLICKED(IDC_SAVE_BUTTON, &BuildBuildingTableWindow::OnBnClickedSaveButton)
     ON_NOTIFY(NM_RCLICK, IDC_BUILDING_TABLE, &BuildBuildingTableWindow::OnNMRClickBuildingTable)
     ON_NOTIFY(LVN_ENDLABELEDIT, IDC_BUILDING_TABLE, &BuildBuildingTableWindow::OnLvnEndlabeleditBuildingTable)
+    ON_NOTIFY(NM_DBLCLK, IDC_BUILDING_TABLE, &BuildBuildingTableWindow::OnNMDblclkBuildingTable)      // 添加双击消息
+    ON_NOTIFY(LVN_KEYDOWN, IDC_BUILDING_TABLE, &BuildBuildingTableWindow::OnLvnKeydownBuildingTable)  // 添加按键消息
+    ON_NOTIFY(LVN_ITEMCHANGED, IDC_BUILDING_TABLE, &BuildBuildingTableWindow::OnLvnItemchangedBuildingTable)  // 添加这行
     ON_WM_SIZE()
 END_MESSAGE_MAP()
 
@@ -70,6 +73,9 @@ void BuildBuildingTableWindow::destroyInstance()
 //-----------------------------------------------------------------------------
 BuildBuildingTableWindow::BuildBuildingTableWindow(CWnd *pParent /*=NULL*/, HINSTANCE hInstance /*=NULL*/) 
     : CAdUiBaseDialog(BuildBuildingTableWindow::IDD, pParent, hInstance)
+    , m_pEditCtrl(nullptr)
+    , m_nEditItem(-1)
+    , m_nEditSubItem(-1)
 {
 }
 
@@ -96,9 +102,6 @@ BOOL BuildBuildingTableWindow::OnInitDialog()
 {
     CAdUiBaseDialog::OnInitDialog();
     
-    // 设置窗口最小尺寸
-    SetWindowPos(NULL, 0, 0, 600, 450, SWP_NOMOVE | SWP_NOZORDER);
-    
     // 初始化控件
     initializeControls();
     
@@ -110,6 +113,10 @@ BOOL BuildBuildingTableWindow::OnInitDialog()
     
     // 加载数据
     loadDataFromDatabase();
+    
+   
+    // 窗口最大化显示
+    ShowWindow(SW_SHOWMAXIMIZED);
     
     return TRUE;
 }
@@ -124,13 +131,19 @@ void BuildBuildingTableWindow::initializeControls()
     CTime currentTime = CTime::GetCurrentTime();
     m_createTimePicker.SetTime(&currentTime);
     
-    // 设置表格样式
+    // 设置表格样式 - 启用编辑功能
     m_buildingTable.SetExtendedStyle(
-        LVS_EX_FULLROWSELECT | 
-        LVS_EX_GRIDLINES | 
-        LVS_EX_HEADERDRAGDROP |
-        LVS_EX_LABELTIP
+        LVS_EX_FULLROWSELECT |      // 整行选择
+        LVS_EX_GRIDLINES |          // 显示网格线
+        LVS_EX_HEADERDRAGDROP |     // 允许拖拽列头
+        LVS_EX_LABELTIP |           // 显示标签提示
+        LVS_EX_INFOTIP              // 显示信息提示
     );
+    
+    // 启用表格的标签编辑功能（这是关键）
+    DWORD dwStyle = m_buildingTable.GetStyle();
+    dwStyle |= LVS_EDITLABELS;  // 添加编辑标签样式
+    m_buildingTable.ModifyStyle(0, LVS_EDITLABELS);
 }
 
 //-----------------------------------------------------------------------------
@@ -500,53 +513,6 @@ std::wstring BuildBuildingTableWindow::getCurrentTimeString()
 }
 
 //-----------------------------------------------------------------------------
-void BuildBuildingTableWindow::resizeControls(int cx, int cy)
-{
-    if (!::IsWindow(m_buildingTable.GetSafeHwnd())) {
-        return;
-    }
-    
-    // 设置最小窗口尺寸
-    if (cx < 500) cx = 500;
-    if (cy < 350) cy = 350;
-    
-    // 调整表格大小
-    CRect tableRect;
-    m_buildingTable.GetWindowRect(&tableRect);
-    ScreenToClient(&tableRect);
-    
-    tableRect.right = cx - 15;
-    tableRect.bottom = cy - 45;
-    m_buildingTable.MoveWindow(&tableRect);
-    
-    // 调整按钮位置
-    CWnd* pSaveBtn = GetDlgItem(IDC_SAVE_BUTTON);
-    CWnd* pOKBtn = GetDlgItem(IDOK);
-    CWnd* pCancelBtn = GetDlgItem(IDCANCEL);
-    
-    if (pSaveBtn && pOKBtn && pCancelBtn) {
-        int buttonY = cy - 25;
-        
-        CRect saveRect, okRect, cancelRect;
-        pSaveBtn->GetWindowRect(&saveRect);
-        pOKBtn->GetWindowRect(&okRect);
-        pCancelBtn->GetWindowRect(&cancelRect);
-        ScreenToClient(&saveRect);
-        ScreenToClient(&okRect);
-        ScreenToClient(&cancelRect);
-        
-        // 重新定位按钮
-        saveRect.MoveToXY(cx - 155, buttonY);
-        okRect.MoveToXY(cx - 100, buttonY);
-        cancelRect.MoveToXY(cx - 50, buttonY);
-        
-        pSaveBtn->MoveWindow(&saveRect);
-        pOKBtn->MoveWindow(&okRect);
-        pCancelBtn->MoveWindow(&cancelRect);
-    }
-}
-
-//-----------------------------------------------------------------------------
 // 消息处理函数
 //-----------------------------------------------------------------------------
 LRESULT BuildBuildingTableWindow::OnAcadKeepFocus(WPARAM, LPARAM)
@@ -584,8 +550,77 @@ void BuildBuildingTableWindow::OnLvnEndlabeleditBuildingTable(NMHDR *pNMHDR, LRE
 {
     NMLVDISPINFO *pDispInfo = reinterpret_cast<NMLVDISPINFO*>(pNMHDR);
     
-    // 允许编辑
-    *pResult = TRUE;
+    // 检查是否有有效的编辑文本
+    if (pDispInfo->item.pszText != NULL && pDispInfo->item.pszText[0] != '\0') {
+        // 接受编辑
+        *pResult = TRUE;
+        
+        // 可以在这里添加数据验证逻辑
+        int nItem = pDispInfo->item.iItem;
+        int nSubItem = pDispInfo->item.iSubItem;
+        CString newText = pDispInfo->item.pszText;
+        
+        // 记录编辑操作
+        CadLogger::LogInfo(_T("表格编辑: 行%d 列%d 新值: %s"), nItem, nSubItem, newText);
+    } else {
+        // 拒绝编辑（如果文本为空或无效）
+        *pResult = FALSE;
+    }
+}
+
+//-----------------------------------------------------------------------------
+// 添加双击编辑功能
+void BuildBuildingTableWindow::OnNMDblclkBuildingTable(NMHDR *pNMHDR, LRESULT *pResult)
+{
+    LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
+    
+    if (pNMItemActivate->iItem >= 0 && pNMItemActivate->iSubItem >= 0) {
+        // 开始编辑选中的单元格
+        startEdit(pNMItemActivate->iItem, pNMItemActivate->iSubItem);
+    }
+    
+    *pResult = 0;
+}
+
+//-----------------------------------------------------------------------------
+// 添加按键处理，支持F2键编辑
+void BuildBuildingTableWindow::OnLvnKeydownBuildingTable(NMHDR *pNMHDR, LRESULT *pResult)
+{
+    LPNMLVKEYDOWN pLVKeyDow = reinterpret_cast<LPNMLVKEYDOWN>(pNMHDR);
+    
+    if (pLVKeyDow->wVKey == VK_F2) {
+        // F2键开始编辑当前选中的单元格
+        int selectedItem = m_buildingTable.GetNextItem(-1, LVNI_SELECTED);
+        if (selectedItem >= 0) {
+            startEdit(selectedItem, 0); // 默认编辑第一列
+        }
+    }
+    else if (pLVKeyDow->wVKey == VK_ESCAPE) {
+        // ESC键取消编辑
+        if (m_pEditCtrl) {
+            endEdit(false);
+        }
+    }
+    else if (pLVKeyDow->wVKey == VK_RETURN) {
+        // 回车键保存编辑
+        if (m_pEditCtrl) {
+            endEdit(true);
+        }
+    }
+    
+    *pResult = 0;
+}
+
+void BuildBuildingTableWindow::OnLvnItemchangedBuildingTable(NMHDR *pNMHDR, LRESULT *pResult)
+{
+    LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
+    
+    // 如果正在编辑且选择项发生变化，结束编辑
+    if (m_pEditCtrl && pNMLV->uNewState & LVIS_SELECTED) {
+        endEdit(true);
+    }
+    
+    *pResult = 0;
 }
 
 void BuildBuildingTableWindow::OnSize(UINT nType, int cx, int cy)
@@ -596,3 +631,236 @@ void BuildBuildingTableWindow::OnSize(UINT nType, int cx, int cy)
         resizeControls(cx, cy);
     }
 }
+
+// 使用常量来确保一致性
+void BuildBuildingTableWindow::resizeControls(int cx, int cy)
+{
+    if (!::IsWindow(m_buildingTable.GetSafeHwnd())) {
+        return;
+    }
+    
+    // 设置最小窗口尺寸
+    if (cx < 500) cx = 500;
+    if (cy < 350) cy = 350;
+    
+    // 调整表格大小 - 为底部按钮留出足够空间
+    CRect tableRect;
+    m_buildingTable.GetWindowRect(&tableRect);
+    ScreenToClient(&tableRect);
+    
+    tableRect.right = cx - 15;
+    tableRect.bottom = cy - 45;  // 为10像素底部距离 + 25像素按钮高度 + 10像素缓冲
+    m_buildingTable.MoveWindow(&tableRect);
+    
+    // 调整底部按钮位置 - 距离底部10像素，按钮高度25像素
+    CWnd* pSaveBtn = GetDlgItem(IDC_SAVE_BUTTON);
+    CWnd* pOKBtn = GetDlgItem(IDOK);
+    CWnd* pCancelBtn = GetDlgItem(IDCANCEL);
+    
+    if (pSaveBtn && pOKBtn && pCancelBtn) {
+        // 获取按钮的原始宽度，但设置固定高度为25像素
+        CRect saveRect;
+        pSaveBtn->GetWindowRect(&saveRect);
+        ScreenToClient(&saveRect);
+        
+        int buttonWidth = saveRect.Width();   // 使用原始宽度
+        int buttonHeight = 25;                // 固定高度为25像素
+        int buttonSpacing = 10;               // 按钮间距
+        
+        // 计算按钮Y坐标：窗口高度 - 10像素底部距离 - 25像素按钮高度
+        int buttonY = cy - 10 - buttonHeight;
+        
+        // 从右到左排列按钮
+        int cancelX = cx - 15 - buttonWidth;  // 取消按钮（最右）
+        int okX = cancelX - buttonWidth - buttonSpacing;  // 确定按钮
+        int saveX = okX - buttonWidth - buttonSpacing;    // 保存按钮（最左）
+        
+        // 移动按钮到新位置，设置固定高度25像素
+        pCancelBtn->MoveWindow(cancelX, buttonY, buttonWidth, buttonHeight);
+        pOKBtn->MoveWindow(okX, buttonY, buttonWidth, buttonHeight);
+        pSaveBtn->MoveWindow(saveX, buttonY, buttonWidth, buttonHeight);
+    }
+    
+    // 调整筛选区域的控件位置
+    adjustFilterControls(cx);
+}
+
+// 修改 adjustFilterControls() 方法，让筛选、重置按钮靠近日期输入框
+void BuildBuildingTableWindow::adjustFilterControls(int cx)
+{
+    // 调整筛选组框的宽度
+    CWnd* pFilterGroup = GetDlgItem(IDC_FILTER_GROUP);
+    if (pFilterGroup) {
+        CRect groupRect;
+        pFilterGroup->GetWindowRect(&groupRect);
+        ScreenToClient(&groupRect);
+        groupRect.right = cx - 15;
+        pFilterGroup->MoveWindow(&groupRect);
+    }
+    
+    // 获取筛选区域的控件
+    CWnd* pCreateTimePicker = GetDlgItem(IDC_CREATE_TIME_PICKER);
+    CWnd* pFilterBtn = GetDlgItem(IDC_FILTER_BUTTON);
+    CWnd* pResetBtn = GetDlgItem(IDC_RESET_FILTER_BUTTON);
+    
+    if (pCreateTimePicker && pFilterBtn && pResetBtn) {
+        // 获取日期选择器的位置
+        CRect timePickerRect;
+        pCreateTimePicker->GetWindowRect(&timePickerRect);
+        ScreenToClient(&timePickerRect);
+        
+        // 获取按钮的原始尺寸
+        CRect filterRect, resetRect;
+        pFilterBtn->GetWindowRect(&filterRect);
+        pResetBtn->GetWindowRect(&resetRect);
+        ScreenToClient(&filterRect);
+        ScreenToClient(&resetRect);
+        
+        int buttonWidth = filterRect.Width();   // 保持原始宽度
+        int buttonHeight = filterRect.Height(); // 保持原始高度
+        int buttonY = filterRect.top;           // 保持原始Y坐标
+        int buttonSpacing = 8;                  // 按钮间的间距
+        int gapFromTimePicker = 15;             // 与日期选择器的间距
+        
+        // 计算筛选按钮的位置（紧跟在日期选择器右侧）
+        int filterX = timePickerRect.right + gapFromTimePicker;
+        int resetX = filterX + buttonWidth + buttonSpacing;
+        
+        // 移动按钮到新位置
+        pFilterBtn->MoveWindow(filterX, buttonY, buttonWidth, buttonHeight);
+        pResetBtn->MoveWindow(resetX, buttonY, buttonWidth, buttonHeight);
+    }
+}
+
+// 实现 startEdit 方法
+void BuildBuildingTableWindow::startEdit(int nItem, int nSubItem)
+{
+    // 如果已经在编辑，先结束当前编辑
+    if (m_pEditCtrl) {
+        endEdit(true);
+    }
+    
+    // 检查参数有效性
+    if (nItem < 0 || nItem >= m_buildingTable.GetItemCount() || 
+        nSubItem < 0 || nSubItem >= m_buildingTable.GetHeaderCtrl()->GetItemCount()) {
+        return;
+    }
+    
+    // 记录编辑位置
+    m_nEditItem = nItem;
+    m_nEditSubItem = nSubItem;
+    
+    // 创建编辑控件
+    m_pEditCtrl = createEditControl(nItem, nSubItem);
+    if (m_pEditCtrl) {
+        m_pEditCtrl->SetFocus();
+        m_pEditCtrl->SetSel(0, -1); // 选中所有文本
+    }
+}
+
+// 实现 endEdit 方法
+void BuildBuildingTableWindow::endEdit(bool bSave)
+{
+    if (!m_pEditCtrl) {
+        return;
+    }
+    
+    if (bSave && m_nEditItem >= 0 && m_nEditSubItem >= 0) {
+        // 保存编辑的内容
+        CString strText;
+        m_pEditCtrl->GetWindowText(strText);
+        m_buildingTable.SetItemText(m_nEditItem, m_nEditSubItem, strText);
+        
+        // 记录编辑操作
+        CadLogger::LogInfo(_T("表格编辑: 行%d 列%d 新值: %s"), 
+                          m_nEditItem, m_nEditSubItem, strText);
+    }
+    
+    // 销毁编辑控件
+    m_pEditCtrl->DestroyWindow();
+    delete m_pEditCtrl;
+    m_pEditCtrl = nullptr;
+    
+    // 重置编辑位置
+    m_nEditItem = -1;
+    m_nEditSubItem = -1;
+    
+    // 重新设置焦点到列表控件
+    m_buildingTable.SetFocus();
+}
+
+// 实现 createEditControl 方法
+CEdit* BuildBuildingTableWindow::createEditControl(int nItem, int nSubItem)
+{
+    // 获取单元格的矩形区域
+    CRect rect;
+    if (!m_buildingTable.GetSubItemRect(nItem, nSubItem, LVIR_BOUNDS, rect)) {
+        return nullptr;
+    }
+    
+    // 调整矩形位置（相对于列表控件）
+    if (nSubItem == 0) {
+        // 第一列需要特殊处理
+        CRect labelRect;
+        m_buildingTable.GetSubItemRect(nItem, nSubItem, LVIR_LABEL, labelRect);
+        rect = labelRect;
+    }
+    
+    // 创建编辑控件
+    CEdit* pEdit = new CEdit();
+    DWORD dwStyle = WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL;
+    
+    if (!pEdit->Create(dwStyle, rect, &m_buildingTable, 1001)) {
+        delete pEdit;
+        return nullptr;
+    }
+    
+    // 设置字体（与列表控件相同）
+    CFont* pFont = m_buildingTable.GetFont();
+    if (pFont) {
+        pEdit->SetFont(pFont);
+    }
+    
+    // 设置初始文本
+    CString strText = m_buildingTable.GetItemText(nItem, nSubItem);
+    pEdit->SetWindowText(strText);
+    
+    return pEdit;
+}
+
+// 重写 PreTranslateMessage 来处理编辑控件的消息
+BOOL BuildBuildingTableWindow::PreTranslateMessage(MSG* pMsg)
+{
+    if (m_pEditCtrl && pMsg->hwnd == m_pEditCtrl->GetSafeHwnd()) {
+        if (pMsg->message == WM_KEYDOWN) {
+            if (pMsg->wParam == VK_RETURN) {
+                // 回车键保存并结束编辑
+                endEdit(true);
+                return TRUE;
+            }
+            else if (pMsg->wParam == VK_ESCAPE) {
+                // ESC键取消编辑
+                endEdit(false);
+                return TRUE;
+            }
+            else if (pMsg->wParam == VK_TAB) {
+                // Tab键移动到下一个单元格
+                endEdit(true);
+                int nextSubItem = m_nEditSubItem + 1;
+                if (nextSubItem >= m_buildingTable.GetHeaderCtrl()->GetItemCount()) {
+                    nextSubItem = 0;
+                    int nextItem = m_nEditItem + 1;
+                    if (nextItem < m_buildingTable.GetItemCount()) {
+                        startEdit(nextItem, nextSubItem);
+                    }
+                } else {
+                    startEdit(m_nEditItem, nextSubItem);
+                }
+                return TRUE;
+            }
+        }
+    }
+    
+    return CAdUiBaseDialog::PreTranslateMessage(pMsg);
+}
+
