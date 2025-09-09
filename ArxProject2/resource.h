@@ -27,6 +27,17 @@
 #define IDC_IMAGE_MANAGEMENT_BUTTON     1016
 #define IDC_COMPONENT_TAGGING_BUTTON    1017
 #define IDC_MODIFY_UPLOAD_BUTTON        1018
+#define IDC_FILTER_GROUP                1019
+#define IDC_BUILDING_NAME_LABEL         1020
+#define IDC_BUILDING_NAME_EDIT          1021
+#define IDC_DESIGN_UNIT_LABEL           1022
+#define IDC_DESIGN_UNIT_EDIT            1023
+#define IDC_CREATE_TIME_LABEL           1024
+#define IDC_CREATE_TIME_PICKER          1025
+#define IDC_FILTER_BUTTON               1026
+#define IDC_RESET_FILTER_BUTTON         1027
+#define IDC_SAVE_BUTTON                 1028
+#define IDC_BUILDING_TABLE              1029
 
 // Next default values for new objects
 // 
@@ -34,7 +45,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        110
 #define _APS_NEXT_COMMAND_VALUE         32768
-#define _APS_NEXT_CONTROL_VALUE         1020
+#define _APS_NEXT_CONTROL_VALUE         1030
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif

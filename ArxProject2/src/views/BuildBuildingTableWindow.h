@@ -1,4 +1,4 @@
-// (C) Copyright 2002-2007 by Autodesk, Inc. 
+﻿// (C) Copyright 2002-2007 by Autodesk, Inc. 
 //
 // Permission to use, copy, modify, and distribute this software in
 // object code form for any purpose and without fee is hereby granted, 
@@ -27,18 +27,81 @@
 //-----------------------------------------------------------------------------
 #include "adui.h"
 #include "../../resource.h"
+#include <afxdtctl.h>  // 添加这个头文件用于CDateTimeCtrl
+#include <vector>
+#include <string>
+
+// 大楼数据结构
+struct BuildingData {
+    int id;
+    std::wstring buildingName;
+    std::wstring address;
+    std::wstring totalArea;
+    std::wstring floors;
+    std::wstring designUnit;
+    std::wstring createTime;
+    std::wstring creator;
+    
+    BuildingData() : id(0) {}
+};
+
 //-----------------------------------------------------------------------------
 class BuildBuildingTableWindow : public CAdUiBaseDialog {
-	DECLARE_DYNAMIC (BuildBuildingTableWindow)
+    DECLARE_DYNAMIC(BuildBuildingTableWindow)
 
 public:
-	BuildBuildingTableWindow (CWnd *pParent =NULL, HINSTANCE hInstance =NULL) ;
+    BuildBuildingTableWindow(CWnd *pParent = NULL, HINSTANCE hInstance = NULL);
+    virtual ~BuildBuildingTableWindow();
 
-	enum { IDD = IDD_BuildBuildingTableWindow} ;
+    enum { IDD = IDD_BuildBuildingTableWindow };
+
+    // 单例模式实现
+    static BuildBuildingTableWindow* getInstance(CWnd *pParent = NULL, HINSTANCE hInstance = NULL);
+    static void destroyInstance();
 
 protected:
-	virtual void DoDataExchange (CDataExchange *pDX) ;
-	afx_msg LRESULT OnAcadKeepFocus (WPARAM, LPARAM) ;
+    virtual void DoDataExchange(CDataExchange *pDX);
+    virtual BOOL OnInitDialog();
+    afx_msg LRESULT OnAcadKeepFocus(WPARAM, LPARAM);
+    afx_msg void OnBnClickedFilterButton();
+    afx_msg void OnBnClickedResetFilterButton();
+    afx_msg void OnBnClickedSaveButton();
+    afx_msg void OnNMRClickBuildingTable(NMHDR *pNMHDR, LRESULT *pResult);
+    afx_msg void OnLvnEndlabeleditBuildingTable(NMHDR *pNMHDR, LRESULT *pResult);
+    afx_msg void OnSize(UINT nType, int cx, int cy);
 
-	DECLARE_MESSAGE_MAP()
-} ;
+    DECLARE_MESSAGE_MAP()
+
+private:
+    // 单例实例
+    static BuildBuildingTableWindow* m_pInstance;
+    
+    // 控件变量
+    CListCtrl m_buildingTable;
+    CEdit m_buildingNameEdit;
+    CEdit m_designUnitEdit;
+    CDateTimeCtrl m_createTimePicker;
+    
+    // 数据管理
+    std::vector<BuildingData> m_buildingDataList;
+    
+    // 私有方法
+    void initializeControls();
+    void setupTableColumns();
+    void loadDataFromDatabase();
+    void saveDataToDatabase();
+    void filterData();
+    void resetFilter();
+    void insertRow();
+    void deleteRow();
+    void showContextMenu(CPoint point);
+    bool createBuildingTable();
+    bool insertBuildingData(const BuildingData& data);
+    void populateTableFromData();
+    void resizeControls(int cx, int cy);
+    std::wstring getCurrentTimeString();
+    
+    // 禁用拷贝构造函数和赋值操作符
+    BuildBuildingTableWindow(const BuildBuildingTableWindow&);
+    BuildBuildingTableWindow& operator=(const BuildBuildingTableWindow&);
+};
