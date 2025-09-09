@@ -24,7 +24,7 @@
 //-----------------------------------------------------------------------------
 #include "StdAfx.h"
 #include "resource.h"
-#include "TestDialof.h"
+#include "src/views/TestDialog.h"
 
 //-----------------------------------------------------------------------------
 #define szRDS _RXST("TST")

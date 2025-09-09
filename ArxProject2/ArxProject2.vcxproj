@@ -13,18 +13,85 @@
   <ItemGroup>
     <ClCompile Include="acrxEntryPoint.cpp" />
     <ClCompile Include="ArxProject2.cpp" />
+    <ClCompile Include="src\views\BuildBuildingTableWindow.cpp" />
     <ClCompile Include="DocData.cpp" />
+    <ClCompile Include="src\views\ManagerSystemLogin.cpp" />
+    <ClCompile Include="src\views\SheetListWindow.cpp" />
+    <ClCompile Include="src\commands\DialogCommand.cpp" />
+    <ClCompile Include="src\common\CadLogger.cpp" />
+    <ClCompile Include="src\common\Database\SqlDB.cpp" />
+    <ClCompile Include="src\common\Document\DwgDatabaseUtil.cpp" />
+    <ClCompile Include="src\common\Entity\ArcUtil.cpp" />
+    <ClCompile Include="src\common\Entity\BlockUtil.cpp" />
+    <ClCompile Include="src\common\Entity\circleutil.cpp" />
+    <ClCompile Include="src\common\Entity\DimensionUtil.cpp" />
+    <ClCompile Include="src\common\Entity\EllipseUtil.cpp" />
+    <ClCompile Include="src\common\Entity\EntityUtil.cpp" />
+    <ClCompile Include="src\common\Entity\HatchUtil.cpp" />
+    <ClCompile Include="src\common\Entity\LineUtil.cpp" />
+    <ClCompile Include="src\common\Entity\PolylineUtil.cpp" />
+    <ClCompile Include="src\common\Entity\RegionUtil.cpp" />
+    <ClCompile Include="src\common\Entity\SplineUtil.cpp" />
+    <ClCompile Include="src\common\Entity\TextUtil.cpp" />
+    <ClCompile Include="src\common\Geometry\GePointUtil.cpp" />
+    <ClCompile Include="src\common\Geometry\GeRectangleUtil.cpp" />
+    <ClCompile Include="src\common\Geometry\MathUtil.cpp" />
+    <ClCompile Include="src\common\Interaction\GetInputUtil.cpp" />
+    <ClCompile Include="src\common\Interaction\SelectUtil.cpp" />
+    <ClCompile Include="src\common\Others\ConvertUtil.cpp" />
+    <ClCompile Include="src\common\SheetManager\FileDuplicateChecker.cpp" />
+    <ClCompile Include="src\common\SheetManager\SheetFileManager.cpp" />
+    <ClCompile Include="src\common\SymbolTable\LayerUtil.cpp" />
+    <ClCompile Include="src\common\SymbolTable\TextStyleUtil.cpp" />
+    <ClCompile Include="src\common\SymbolTable\ViewUtil.cpp" />
+    <ClCompile Include="src\services\DwgViewerService.cpp" />
+    <ClCompile Include="src\services\SearchTextInDwg.cpp" />
     <ClCompile Include="StdAfx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="TestDialof.cpp" />
+    <ClCompile Include="src\views\TestDialog.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\views\BuildBuildingTableWindow.h" />
     <ClInclude Include="DocData.h" />
+    <ClInclude Include="src\views\ManagerSystemLogin.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="src\views\SheetListWindow.h" />
+    <ClInclude Include="src\commands\DialogCommand.h" />
+    <ClInclude Include="src\common\CadLogger.h" />
+    <ClInclude Include="src\common\Database\SqlDB.h" />
+    <ClInclude Include="src\common\Document\DwgDatabaseUtil.h" />
+    <ClInclude Include="src\common\Entity\ArcUtil.h" />
+    <ClInclude Include="src\common\Entity\BlockUtil.h" />
+    <ClInclude Include="src\common\Entity\circleutil.h" />
+    <ClInclude Include="src\common\Entity\DimensionUtil.h" />
+    <ClInclude Include="src\common\Entity\EllipseUtil.h" />
+    <ClInclude Include="src\common\Entity\EntityUtil.h" />
+    <ClInclude Include="src\common\Entity\HatchUtil.h" />
+    <ClInclude Include="src\common\Entity\LineUtil.h" />
+    <ClInclude Include="src\common\Entity\PolylineUtil.h" />
+    <ClInclude Include="src\common\Entity\RegionUtil.h" />
+    <ClInclude Include="src\common\Entity\SplineUtil.h" />
+    <ClInclude Include="src\common\Entity\TextUtil.h" />
+    <ClInclude Include="src\common\Geometry\GePointUtil.h" />
+    <ClInclude Include="src\common\Geometry\GeRectangleUtil.h" />
+    <ClInclude Include="src\common\Geometry\MathUtil.h" />
+    <ClInclude Include="src\common\Interaction\GetInputUtil.h" />
+    <ClInclude Include="src\common\Interaction\SelectUtil.h" />
+    <ClInclude Include="src\common\Others\ConvertUtil.h" />
+    <ClInclude Include="src\common\SheetManager\FileDuplicateChecker.h" />
+    <ClInclude Include="src\common\SheetManager\SheetFileManager.h" />
+    <ClInclude Include="src\common\SymbolTable\LayerUtil.h" />
+    <ClInclude Include="src\common\SymbolTable\TextStyleUtil.h" />
+    <ClInclude Include="src\common\SymbolTable\ViewUtil.h" />
+    <ClInclude Include="src\models\SheetData.h" />
+    <ClInclude Include="src\models\SheetManagerModel.h" />
+    <ClInclude Include="src\services\DwgViewerService.h" />
+    <ClInclude Include="src\services\SearchTextInDwg.h" />
+    <ClInclude Include="src\stdafx.h" />
     <ClInclude Include="StdAfx.h" />
-    <ClInclude Include="TestDialof.h" />
+    <ClInclude Include="src\views\TestDialog.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="ArxProject2.rc" />

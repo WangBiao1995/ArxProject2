@@ -1,5 +1,7 @@
 // Microsoft Visual C++ generated resource script.
 //
+#pragma code_page(65001)
+
 #include "resource.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
@@ -13,11 +15,10 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// ����(���壬�й�) resources
+// 中文(简体，中国) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
 LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
-#pragma code_page(936)
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
@@ -87,14 +88,56 @@ END
 // Dialog
 //
 
-IDD_DIALOG1 DIALOGEX 0, 0, 310, 177
+IDD_DIALOG1 DIALOGEX 0, 0, 257, 411
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "图纸数字化档案管理系统"
+FONT 9, "MS Shell Dlg", 400, 0, 0x86
+BEGIN
+    CTEXT           "图纸数字化档案管理系统",IDC_TITLE_LABEL,85,16,84,8
+    CTEXT           "用户：XXX",IDC_USER_LABEL,88,28,75,8
+    LTEXT           "大楼管理",IDC_BUILDING_MANAGEMENT_LABEL,25,45,49,8
+    PUSHBUTTON      "大楼列表",IDC_BUILDING_LIST_BUTTON,42,60,40,17
+    PUSHBUTTON      "图纸列表",IDC_DRAWING_LIST_BUTTON,88,61,47,16
+    LTEXT           "当前大楼:",IDC_CURRENT_BUILDING_LABEL,19,82,46,8
+    COMBOBOX        IDC_CURRENT_BUILDING_COMBO,59,80,142,12,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "图纸查看:",IDC_DRAWING_VIEW_LABEL,18,98,42,8
+    EDITTEXT        IDC_SEARCH_EDIT,58,96,145,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "搜索",IDC_SEARCH_BUTTON,205,95,42,14
+    CONTROL         "",IDC_DRAWING_TREE,"SysTreeView32",TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | WS_BORDER | WS_HSCROLL | WS_TABSTOP,20,112,222,233
+    PUSHBUTTON      "图纸对比",IDC_DRAWING_COMPARISON_BUTTON,23,359,59,15
+    PUSHBUTTON      "工程量计算",IDC_ENGINEERING_CALC_BUTTON,87,358,61,15
+    PUSHBUTTON      "导出计算报表",IDC_EXPORT_REPORT_BUTTON,154,358,62,14
+    PUSHBUTTON      "影像管理",IDC_IMAGE_MANAGEMENT_BUTTON,22,379,56,14
+    PUSHBUTTON      "构件打标签",IDC_COMPONENT_TAGGING_BUTTON,89,379,59,14
+    PUSHBUTTON      "图纸修改并上传",IDC_MODIFY_UPLOAD_BUTTON,157,378,57,16
+    LTEXT           "工具箱",IDC_TOOLBOX_LABEL,26,346,28,9
+END
+
+IDD_BuildBuildingTableWindow DIALOGEX 0, 0, 310, 177
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Dialog"
+CAPTION "Build Building Table"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    DEFPUSHBUTTON   "ȷ��",IDOK,199,156,50,14
-    PUSHBUTTON      "ȡ��",IDCANCEL,253,156,50,14
-    EDITTEXT        IDC_EDIT1,83,31,101,23,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,199,156,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,253,156,50,14
+END
+
+IDD_ManagerSystemLogin DIALOGEX 0, 0, 310, 177
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Manager System Login"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,199,156,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,253,156,50,14
+END
+
+IDD_SheetListWindow DIALOGEX 0, 0, 310, 177
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Sheet List Window"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,199,156,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,253,156,50,14
 END
 
 
@@ -107,6 +150,29 @@ END
 GUIDELINES DESIGNINFO
 BEGIN
     IDD_DIALOG1, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 251
+        TOPMARGIN, 6
+    END
+
+    IDD_BuildBuildingTableWindow, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 303
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 170
+    END
+
+    IDD_ManagerSystemLogin, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 303
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 170
+    END
+
+    IDD_SheetListWindow, DIALOG
     BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 303
@@ -127,6 +193,21 @@ BEGIN
     0
 END
 
+IDD_BuildBuildingTableWindow AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+IDD_ManagerSystemLogin AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+IDD_SheetListWindow AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -138,7 +219,7 @@ BEGIN
     IDS_PROJNAME            "ArxProject2"
 END
 
-#endif    // ����(���壬�й�) resources
+#endif    // 中文(简体，中国) resources
 /////////////////////////////////////////////////////////////////////////////
 
 
