@@ -54,6 +54,9 @@ public:
     // 通用数据库操作
     static bool executeQuery(const std::wstring& sql, std::wstring& errorMsg);
     static bool executeQuery(const std::wstring& sql);
+
+    // 添加查询结果返回方法
+    static bool executeSelectQuery(const std::wstring& sql, std::vector<std::vector<std::wstring>>& results, std::wstring& errorMsg);
     
     // 字段管理方法（支持指定表名）
     static bool addFieldToTable(const std::wstring& tableName, const std::wstring& fieldName, const std::wstring& fieldType, const std::wstring& defaultValue = L"");

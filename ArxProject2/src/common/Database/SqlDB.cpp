@@ -202,6 +202,67 @@ bool SqlDB::executeQuery(const std::wstring& sql)
     return executeQuery(sql, errorMsg);
 }
 
+// 添加查询结果返回方法
+bool SqlDB::executeSelectQuery(const std::wstring& sql, std::vector<std::vector<std::wstring>>& results, std::wstring& errorMsg)
+{
+    results.clear();
+    
+    try {
+        if (m_hDbc == SQL_NULL_HDBC) {
+            errorMsg = L"数据库未连接";
+            return false;
+        }
+        
+        SQLHSTMT hStmt;
+        SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, m_hDbc, &hStmt);
+        if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
+            errorMsg = L"分配语句句柄失败";
+            return false;
+        }
+        
+        ret = SQLExecDirect(hStmt, (SQLWCHAR*)sql.c_str(), SQL_NTS);
+        if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
+            // 获取列数
+            SQLSMALLINT columnCount;
+            SQLNumResultCols(hStmt, &columnCount);
+            
+            // 读取数据
+            while (SQLFetch(hStmt) == SQL_SUCCESS) {
+                std::vector<std::wstring> row;
+                
+                for (int i = 1; i <= columnCount; i++) {
+                    SQLWCHAR buffer[1024];
+                    SQLLEN indicator;
+                    
+                    ret = SQLGetData(hStmt, i, SQL_C_WCHAR, buffer, sizeof(buffer), &indicator);
+                    if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
+                        if (indicator == SQL_NULL_DATA) {
+                            row.push_back(L"");
+                        } else {
+                            row.push_back(std::wstring(buffer));
+                        }
+                    } else {
+                        row.push_back(L"");
+                    }
+                }
+                
+                results.push_back(row);
+            }
+        } else {
+            errorMsg = getLastError();
+            SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+            return false;
+        }
+        
+        SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+        return true;
+        
+    } catch (...) {
+        errorMsg = L"执行查询时发生异常";
+        return false;
+    }
+}
+
 // 创建测试表
 bool SqlDB::createTestTables()
 {

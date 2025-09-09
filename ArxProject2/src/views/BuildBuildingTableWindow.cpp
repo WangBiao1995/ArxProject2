@@ -198,37 +198,61 @@ void BuildBuildingTableWindow::loadDataFromDatabase()
     m_buildingTable.DeleteAllItems();
     
     // 查询数据库
-    std::wstring sql = L"SELECT id, building_name, address, total_area, floors, design_unit, "
-        L"TO_CHAR(create_time, 'YYYY-MM-DD') as create_time, creator "
-        L"FROM building_info ORDER BY created_at DESC";
+		std::wstring sql = L"SELECT id, building_name, address, total_area, floors, design_unit, "
+			L"TO_CHAR(create_time, 'YYYY-MM-DD') as create_time, creator "
+			L"FROM building_info ORDER BY created_at DESC";
     
     std::wstring errorMsg;
+    std::vector<std::vector<std::wstring>> results;
     
-    // 这里需要实现一个查询方法，由于原有的SqlDB类主要用于执行语句，我们需要扩展它
-    // 暂时使用简单的方法，实际项目中应该扩展SqlDB类
-    
-    // 添加一些示例数据用于演示
-    BuildingData sampleData1;
-    sampleData1.id = 1;
-    sampleData1.buildingName = L"测试大楼1";
-    sampleData1.address = L"北京市朝阳区";
-    sampleData1.totalArea = L"10000";
-    sampleData1.floors = L"20";
-    sampleData1.designUnit = L"北京设计院";
-    sampleData1.createTime = getCurrentTimeString();
-    sampleData1.creator = L"系统用户";
-    m_buildingDataList.push_back(sampleData1);
-    
-    BuildingData sampleData2;
-    sampleData2.id = 2;
-    sampleData2.buildingName = L"测试大楼2";
-    sampleData2.address = L"上海市浦东新区";
-    sampleData2.totalArea = L"15000";
-    sampleData2.floors = L"25";
-    sampleData2.designUnit = L"上海设计院";
-    sampleData2.createTime = getCurrentTimeString();
-    sampleData2.creator = L"系统用户";
-    m_buildingDataList.push_back(sampleData2);
+    // 执行查询
+    if (SqlDB::executeSelectQuery(sql, results, errorMsg)) {
+        // 处理查询结果
+        for (const auto& row : results) {
+            if (row.size() >= 8) {  // 确保有足够的列
+                BuildingData data;
+                data.id = _wtoi(row[0].c_str());
+                data.buildingName = row[1];
+                data.address = row[2];
+                data.totalArea = row[3];
+                data.floors = row[4];
+                data.designUnit = row[5];
+                data.createTime = row[6];
+                data.creator = row[7];
+                
+                m_buildingDataList.push_back(data);
+            }
+        }
+        
+        CadLogger::LogInfo(_T("从数据库加载了 %d 条大楼数据"), static_cast<int>(m_buildingDataList.size()));
+    } else {
+        // 查询失败，记录错误并使用示例数据
+        CString errMsg(errorMsg.c_str());
+        CadLogger::LogWarning(_T("从数据库加载数据失败: %s，使用示例数据"), errMsg);
+        
+        // 添加示例数据作为备用
+        BuildingData sampleData1;
+        sampleData1.id = 1;
+        sampleData1.buildingName = L"测试大楼1";
+        sampleData1.address = L"北京市朝阳区";
+        sampleData1.totalArea = L"10000";
+        sampleData1.floors = L"20";
+        sampleData1.designUnit = L"北京设计院";
+        sampleData1.createTime = getCurrentTimeString();
+        sampleData1.creator = L"系统用户";
+        m_buildingDataList.push_back(sampleData1);
+        
+        BuildingData sampleData2;
+        sampleData2.id = 2;
+        sampleData2.buildingName = L"测试大楼2";
+        sampleData2.address = L"上海市浦东新区";
+        sampleData2.totalArea = L"15000";
+        sampleData2.floors = L"25";
+        sampleData2.designUnit = L"上海设计院";
+        sampleData2.createTime = getCurrentTimeString();
+        sampleData2.creator = L"系统用户";
+        m_buildingDataList.push_back(sampleData2);
+    }
     
     // 填充表格
     populateTableFromData();
