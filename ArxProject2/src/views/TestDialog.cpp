@@ -216,27 +216,24 @@ void CTestDialog::InitializeDrawingTree()
     // 清空树形控件
     m_drawingTree.DeleteAllItems();
     
-    // 添加根节点
-    HTREEITEM hRoot = m_drawingTree.InsertItem(_T("图纸分类"), TVI_ROOT);
+    // 创建结构分类
+    HTREEITEM hStructure = m_drawingTree.InsertItem(_T("▼结构"), TVI_ROOT);
+    m_drawingTree.InsertItem(_T("结构图纸第一版"), hStructure);
+    m_drawingTree.InsertItem(_T("结构图纸第二版"), hStructure);
+    m_drawingTree.InsertItem(_T("Item 1.3"), hStructure);
     
-    // 添加子节点示例
-    HTREEITEM hArchitecture = m_drawingTree.InsertItem(_T("建筑图纸"), hRoot);
-    m_drawingTree.InsertItem(_T("平面图"), hArchitecture);
-    m_drawingTree.InsertItem(_T("立面图"), hArchitecture);
-    m_drawingTree.InsertItem(_T("剖面图"), hArchitecture);
+    // 添加其他分类
+    HTREEITEM hEnclosure = m_drawingTree.InsertItem(_T("围护(含室外)"), TVI_ROOT);
+    HTREEITEM hDecoration = m_drawingTree.InsertItem(_T("装饰装修"), TVI_ROOT);
+    HTREEITEM hPlumbing = m_drawingTree.InsertItem(_T("给水排水"), TVI_ROOT);
+    HTREEITEM hHeating = m_drawingTree.InsertItem(_T("供热采暖"), TVI_ROOT);
+    HTREEITEM hHVAC = m_drawingTree.InsertItem(_T("空调通风"), TVI_ROOT);
+    HTREEITEM hElectrical = m_drawingTree.InsertItem(_T("电气"), TVI_ROOT);
+    HTREEITEM hElevator = m_drawingTree.InsertItem(_T("电梯"), TVI_ROOT);
+    HTREEITEM hIntelligent = m_drawingTree.InsertItem(_T("建筑智能化(含消防)"), TVI_ROOT);
     
-    HTREEITEM hStructure = m_drawingTree.InsertItem(_T("结构图纸"), hRoot);
-    m_drawingTree.InsertItem(_T("基础图"), hStructure);
-    m_drawingTree.InsertItem(_T("梁板图"), hStructure);
-    m_drawingTree.InsertItem(_T("柱网图"), hStructure);
-    
-    HTREEITEM hMEP = m_drawingTree.InsertItem(_T("机电图纸"), hRoot);
-    m_drawingTree.InsertItem(_T("电气图"), hMEP);
-    m_drawingTree.InsertItem(_T("给排水图"), hMEP);
-    m_drawingTree.InsertItem(_T("暖通图"), hMEP);
-    
-    // 展开根节点
-    m_drawingTree.Expand(hRoot, TVE_EXPAND);
+    // 展开结构节点
+    m_drawingTree.Expand(hStructure, TVE_EXPAND);
 }
 
 void CTestDialog::UpdateUserInfo()
