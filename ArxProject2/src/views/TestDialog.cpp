@@ -318,19 +318,17 @@ void CTestDialog::OnBnClickedBuildingList()
     // 创建并显示大楼列表窗口
     BuildBuildingTableWindow* pBuildingWindow = new BuildBuildingTableWindow(this);
     pBuildingWindow->DoModal();
-  /*  pBuildingWindow->Create(IDD_BuildBuildingTableWindow, this);
-    pBuildingWindow->ShowWindow(SW_SHOW);*/
+    delete pBuildingWindow;
 }
 
 void CTestDialog::OnBnClickedDrawingList()
 {
     acutPrintf(_T("\n打开图纸列表窗口\n"));
     
-    // 使用单例模式获取图纸列表窗口实例
-    SheetListWindow* pSheetWindow = SheetListWindow::getInstance(this);
+    // 创建并显示图纸列表窗口
+    SheetListWindow* pSheetWindow = new SheetListWindow(this);
     pSheetWindow->DoModal();
-		/* pSheetWindow->Create(IDD_SheetListWindow, this);
-		 pSheetWindow->ShowWindow(SW_SHOW);*/
+    delete pSheetWindow; // 模态对话框结束后删除
 }
 
 void CTestDialog::OnBnClickedSearch()

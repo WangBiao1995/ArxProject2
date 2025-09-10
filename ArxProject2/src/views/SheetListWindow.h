@@ -44,13 +44,9 @@ class SheetListWindow : public CAdUiBaseDialog {
 	DECLARE_DYNAMIC(SheetListWindow)
 
 public:
-	// 单例模式实现
-	static SheetListWindow* getInstance(CWnd* pParent = nullptr, HINSTANCE hInstance = nullptr);
-	static void destroyInstance();
-	
-	// 禁用拷贝构造函数和赋值操作符
-	SheetListWindow(const SheetListWindow&) = delete;
-	SheetListWindow& operator=(const SheetListWindow&) = delete;
+	// 构造函数和析构函数
+	SheetListWindow(CWnd* pParent = nullptr, HINSTANCE hInstance = nullptr);
+	virtual ~SheetListWindow();
 
 	enum { IDD = IDD_SheetListWindow };
 
@@ -77,17 +73,11 @@ protected:
 	afx_msg void OnLvnKeydownSheetTable(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnEnChangeSheetBuildingNameEdit();
 	afx_msg void OnBnClickedSheetSearchGroup();
+	afx_msg void OnTimer(UINT_PTR nIDEvent);  // 新增：定时器处理
 
 	DECLARE_MESSAGE_MAP()
 
 private:
-	// 私有构造函数和析构函数
-	SheetListWindow(CWnd* pParent = nullptr, HINSTANCE hInstance = nullptr);
-	virtual ~SheetListWindow();
-	
-	// 单例实例
-	static SheetListWindow* m_pInstance;
-	
 	// 控件变量
 	CEdit m_buildingNameEdit;
 	CEdit m_specialtyEdit;
@@ -97,6 +87,7 @@ private:
 	CButton m_resetFilterButton;
 	CButton m_uploadButton;
 	CListCtrl m_sheetTable;
+	CFont m_headerFont;  // 新增：表头粗体字体
 	
 	// 右键菜单
 	CMenu m_contextMenu;
@@ -104,6 +95,8 @@ private:
 	
 	// 编辑控件相关（参照BuildBuildingTableWindow）
 	CEdit* m_pEditCtrl;
+	CComboBox* m_pComboCtrl;  // 新增：专业选择下拉框
+	CButton* m_pButtonCtrl;   // 新增：操作按钮
 	int m_nEditItem;
 	int m_nEditSubItem;
 	
@@ -122,6 +115,7 @@ private:
 	void UpdateTableWithFilteredData(const std::vector<std::shared_ptr<SheetData>>& filteredData);
 	void ResizeControls(int cx, int cy);
 	void AdjustFilterControls(int cx);
+	void ResizeTableColumns(); // 新增：重新计算表格列宽度
 	
 	// 数据操作方法
 	void LoadDataFromDatabase();
@@ -146,6 +140,8 @@ private:
 	void StartEdit(int nItem, int nSubItem);
 	void EndEdit(bool bSave);
 	CEdit* CreateEditControl(int nItem, int nSubItem);
+	CComboBox* CreateComboControl(int nItem, int nSubItem);  // 新增：创建下拉框控件
+	CButton* CreateButtonControl(int nItem, int nSubItem);   // 新增：创建按钮控件
 	
 	// 上传相关方法
 	void UploadSelectedSheets();
@@ -159,10 +155,13 @@ private:
 	int GetStatusIndex(const CString& statusText);
 	std::wstring GetCurrentTimeString();
 	
+	// 专业类型相关方法
+	void InitializeSpecialtyCombo(CComboBox* pCombo);
+	
 	// 常量定义（调整按钮高度和最小窗口尺寸）
 	static const int MIN_WIDTH = 700;   // 增加最小宽度
 	static const int MIN_HEIGHT = 350;
-	static const int BUTTON_HEIGHT = 14; // 按钮高度改为14像素
+	static const int BUTTON_HEIGHT = 25; // 按钮高度改为14像素
 	
 	// 表格列索引
 	enum ColumnIndex {

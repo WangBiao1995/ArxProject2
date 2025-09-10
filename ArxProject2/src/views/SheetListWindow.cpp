@@ -35,8 +35,8 @@
 //-----------------------------------------------------------------------------
 IMPLEMENT_DYNAMIC(SheetListWindow, CAdUiBaseDialog)
 
-// 静态成员初始化
-SheetListWindow* SheetListWindow::m_pInstance = nullptr;
+// 移除静态成员初始化
+// SheetListWindow* SheetListWindow::m_pInstance = nullptr;
 
 BEGIN_MESSAGE_MAP(SheetListWindow, CAdUiBaseDialog)
 	ON_MESSAGE(WM_ACAD_KEEPFOCUS, OnAcadKeepFocus)
@@ -55,10 +55,13 @@ BEGIN_MESSAGE_MAP(SheetListWindow, CAdUiBaseDialog)
 	ON_NOTIFY(LVN_KEYDOWN, IDC_SHEET_TABLE, &SheetListWindow::OnLvnKeydownSheetTable)
 	ON_EN_CHANGE(IDC_SHEET_BUILDING_NAME_EDIT, &SheetListWindow::OnEnChangeSheetBuildingNameEdit)
 	ON_BN_CLICKED(IDC_SHEET_SEARCH_GROUP, &SheetListWindow::OnBnClickedSheetSearchGroup)
+	ON_WM_TIMER()  // 新增：定时器消息映射
 END_MESSAGE_MAP()
 
 //-----------------------------------------------------------------------------
 // 单例模式实现
+// 移除单例方法实现
+/*
 SheetListWindow* SheetListWindow::getInstance(CWnd* pParent, HINSTANCE hInstance)
 {
 	if (m_pInstance == nullptr) {
@@ -77,14 +80,15 @@ void SheetListWindow::destroyInstance()
 		m_pInstance = nullptr;
 	}
 }
+*/
 
 //-----------------------------------------------------------------------------
 SheetListWindow::SheetListWindow(CWnd* pParent, HINSTANCE hInstance)
 	: CAdUiBaseDialog(SheetListWindow::IDD, pParent, hInstance)
 	, m_contextMenuRow(-1)
-	, m_fileManager(nullptr)
-	, m_statusManager(nullptr)
 	, m_pEditCtrl(nullptr)
+	, m_pComboCtrl(nullptr)  // 新增
+	, m_pButtonCtrl(nullptr) // 新增
 	, m_nEditItem(-1)
 	, m_nEditSubItem(-1)
 {
@@ -96,21 +100,19 @@ SheetListWindow::~SheetListWindow()
 	if (m_pEditCtrl) {
 		EndEdit(false);
 	}
+	if (m_pComboCtrl) {
+		m_pComboCtrl->DestroyWindow();
+		delete m_pComboCtrl;
+		m_pComboCtrl = nullptr;
+	}
+	if (m_pButtonCtrl) {
+		m_pButtonCtrl->DestroyWindow();
+		delete m_pButtonCtrl;
+		m_pButtonCtrl = nullptr;
+	}
 	
-	// 清理资源
-	if (m_fileManager) {
-		delete m_fileManager;
-		m_fileManager = nullptr;
-	}
-	if (m_statusManager) {
-		delete m_statusManager;
-		m_statusManager = nullptr;
-	}
-	
-	// 清空单例指针
-	if (m_pInstance == this) {
-		m_pInstance = nullptr;
-	}
+	// 智能指针会自动清理资源，无需手动delete
+	// 移除单例相关清理代码
 }
 
 //-----------------------------------------------------------------------------
@@ -183,6 +185,25 @@ void SheetListWindow::InitializeControls()
 	DWORD dwStyle = m_sheetTable.GetStyle();
 	dwStyle |= LVS_EDITLABELS;
 	m_sheetTable.ModifyStyle(0, LVS_EDITLABELS);
+	
+	// 设置行高以容纳按钮控件
+	CImageList imageList;
+	imageList.Create(1, 24, ILC_COLOR, 1, 1); // 设置24像素高度
+	m_sheetTable.SetImageList(&imageList, LVSIL_SMALL);
+	imageList.Detach(); // 分离图像列表，让表格控件管理
+	
+	// 设置表头字体为粗体
+	CHeaderCtrl* pHeader = m_sheetTable.GetHeaderCtrl();
+	if (pHeader) {
+		CFont* pFont = GetFont();
+		if (pFont) {
+			LOGFONT lf;
+			pFont->GetLogFont(&lf);
+			lf.lfWeight = FW_BOLD;  // 设置为粗体
+			m_headerFont.CreateFontIndirect(&lf);
+			pHeader->SetFont(&m_headerFont);
+		}
+	}
 }
 
 void SheetListWindow::SetupSheetTable()
@@ -192,18 +213,48 @@ void SheetListWindow::SetupSheetTable()
 		m_sheetTable.DeleteColumn(0);
 	}
 	
-	// 插入列，调整列宽以适应800像素宽度的窗口
-	m_sheetTable.InsertColumn(COL_SELECT, _T("选择"), LVCFMT_CENTER, 50);
-	m_sheetTable.InsertColumn(COL_NAME, _T("图纸名称"), LVCFMT_LEFT, 120);
-	m_sheetTable.InsertColumn(COL_BUILDING, _T("大楼名称"), LVCFMT_LEFT, 100);
-	m_sheetTable.InsertColumn(COL_SPECIALTY, _T("专业"), LVCFMT_LEFT, 80);
-	m_sheetTable.InsertColumn(COL_FORMAT, _T("图纸格式"), LVCFMT_LEFT, 70);
-	m_sheetTable.InsertColumn(COL_STATUS, _T("图纸状态"), LVCFMT_LEFT, 70);
-	m_sheetTable.InsertColumn(COL_VERSION, _T("版本号"), LVCFMT_LEFT, 60);
-	m_sheetTable.InsertColumn(COL_DESIGN_UNIT, _T("设计单位"), LVCFMT_LEFT, 100);
-	m_sheetTable.InsertColumn(COL_CREATE_TIME, _T("创建时间"), LVCFMT_LEFT, 80);
-	m_sheetTable.InsertColumn(COL_CREATOR, _T("创建人"), LVCFMT_LEFT, 60);
-	m_sheetTable.InsertColumn(COL_OPERATION, _T("操作"), LVCFMT_CENTER, 80);
+	// 获取表格客户区宽度用于按权重分配列宽
+	CRect clientRect;
+	m_sheetTable.GetClientRect(&clientRect);
+	int totalWidth = clientRect.Width() - 30; // 减少边距，确保有足够空间
+	
+	// 如果窗口最大化，使用更精确的宽度计算
+	if (IsZoomed()) {
+		CRect windowRect;
+		GetWindowRect(&windowRect);
+		// 使用窗口实际宽度减去边框和滚动条
+		totalWidth = windowRect.Width() - 60; // 减去窗口边框、滚动条等
+	}
+	
+	// 重新调整权重分配，确保所有列都能在窗口内显示
+	struct ColumnInfo {
+		LPCTSTR title;
+		int weight;
+		int format;
+	};
+	
+	ColumnInfo columns[] = {
+		{ _T("选择"), 4, LVCFMT_CENTER },      // 4%
+		{ _T("图纸名称"), 16, LVCFMT_LEFT },   // 16% - 减少
+		{ _T("大楼名称"), 14, LVCFMT_LEFT },   // 14% - 减少
+		{ _T("专业"), 9, LVCFMT_LEFT },        // 9% - 减少
+		{ _T("图纸格式"), 8, LVCFMT_LEFT },    // 8% - 减少
+		{ _T("图纸状态"), 8, LVCFMT_LEFT },    // 8% - 减少
+		{ _T("版本号"), 6, LVCFMT_LEFT },      // 6%
+		{ _T("设计单位"), 12, LVCFMT_LEFT },   // 12% - 减少
+		{ _T("创建时间"), 8, LVCFMT_LEFT },    // 8%
+		{ _T("创建人"), 6, LVCFMT_LEFT },      // 6% - 减少
+		{ _T("操作"), 9, LVCFMT_CENTER }       // 9% - 确保操作列可见
+	};
+	
+	// 插入列并按权重设置宽度
+	for (int i = 0; i < 11; i++) {
+		int columnWidth = (totalWidth * columns[i].weight) / 100;
+		// 设置最小列宽，操作列需要更大的最小宽度
+		int minWidth = (i == COL_OPERATION) ? 80 : 50;
+		if (columnWidth < minWidth) columnWidth = minWidth;
+		m_sheetTable.InsertColumn(i, columns[i].title, columns[i].format, columnWidth);
+	}
 }
 
 void SheetListWindow::PopulateTableData()
@@ -287,7 +338,13 @@ void SheetListWindow::UpdateTableWithFilteredData(const std::vector<std::shared_
 		m_sheetTable.SetItemText(nItem, COL_DESIGN_UNIT, data->designUnit.c_str());
 		m_sheetTable.SetItemText(nItem, COL_CREATE_TIME, data->createTime.c_str());
 		m_sheetTable.SetItemText(nItem, COL_CREATOR, data->creator.c_str());
-		m_sheetTable.SetItemText(nItem, COL_OPERATION, _T("选择文件"));
+		
+		// 操作列显示按钮文本
+		if (data->filePath.empty()) {
+			m_sheetTable.SetItemText(nItem, COL_OPERATION, _T("选择文件"));
+		} else {
+			m_sheetTable.SetItemText(nItem, COL_OPERATION, _T("重新选择"));
+		}
 		
 		// 设置行数据指针
 		m_sheetTable.SetItemData(nItem, static_cast<DWORD_PTR>(i));
@@ -439,9 +496,19 @@ void SheetListWindow::OnNMDblclkSheetTable(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
 	
-	if (pNMItemActivate->iItem >= 0 && pNMItemActivate->iSubItem >= 0) {
-		// 双击开始编辑选中的单元格
-		StartEdit(pNMItemActivate->iItem, pNMItemActivate->iSubItem);
+	if (pNMItemActivate->iItem >= 0) {
+		// 如果双击的是操作列，创建按钮控件
+		if (pNMItemActivate->iSubItem == COL_OPERATION) {
+			CreateButtonControl(pNMItemActivate->iItem, pNMItemActivate->iSubItem);
+		}
+		// 如果双击的是专业列，创建下拉框控件
+		else if (pNMItemActivate->iSubItem == COL_SPECIALTY) {
+			CreateComboControl(pNMItemActivate->iItem, pNMItemActivate->iSubItem);
+		}
+		// 如果双击的是其他列，开始编辑
+		else if (pNMItemActivate->iSubItem > 0) {
+			StartEdit(pNMItemActivate->iItem, pNMItemActivate->iSubItem);
+		}
 	}
 	
 	*pResult = 0;
@@ -505,8 +572,8 @@ void SheetListWindow::OnOK()
 	// 保存数据到数据库
 	SaveDataToDatabase();
 	
-	// 隐藏窗口而不是销毁（单例模式）
-	ShowWindow(SW_HIDE);
+	// 关闭对话框
+	CAdUiBaseDialog::OnOK();
 }
 
 void SheetListWindow::OnCancel()
@@ -516,38 +583,35 @@ void SheetListWindow::OnCancel()
 		EndEdit(false);
 	}
 	
-	// 隐藏窗口而不是销毁（单例模式）
-	ShowWindow(SW_HIDE);
+	// 关闭对话框
+	CAdUiBaseDialog::OnCancel();
 }
 
 BOOL SheetListWindow::PreTranslateMessage(MSG* pMsg)
 {
-	// 处理编辑控件的消息（参照BuildBuildingTableWindow）
+	// 处理编辑控件的消息
 	if (m_pEditCtrl && pMsg->hwnd == m_pEditCtrl->GetSafeHwnd()) {
 		if (pMsg->message == WM_KEYDOWN) {
 			if (pMsg->wParam == VK_RETURN) {
-				// 回车键保存并结束编辑
 				EndEdit(true);
 				return TRUE;
 			}
 			else if (pMsg->wParam == VK_ESCAPE) {
-				// ESC键取消编辑
 				EndEdit(false);
 				return TRUE;
 			}
-			else if (pMsg->wParam == VK_TAB) {
-				// Tab键移动到下一个单元格
+		}
+	}
+	
+	// 处理下拉框控件的消息
+	if (m_pComboCtrl && pMsg->hwnd == m_pComboCtrl->GetSafeHwnd()) {
+		if (pMsg->message == WM_KEYDOWN) {
+			if (pMsg->wParam == VK_RETURN) {
 				EndEdit(true);
-				int nextSubItem = m_nEditSubItem + 1;
-				if (nextSubItem >= m_sheetTable.GetHeaderCtrl()->GetItemCount()) {
-					nextSubItem = 1; // 跳过选择列
-					int nextItem = m_nEditItem + 1;
-					if (nextItem < m_sheetTable.GetItemCount()) {
-						StartEdit(nextItem, nextSubItem);
-					}
-				} else {
-					StartEdit(m_nEditItem, nextSubItem);
-				}
+				return TRUE;
+			}
+			else if (pMsg->wParam == VK_ESCAPE) {
+				EndEdit(false);
 				return TRUE;
 			}
 		}
@@ -577,6 +641,9 @@ void SheetListWindow::ResizeControls(int cx, int cy)
 	tableRect.right = cx - 15;
 	tableRect.bottom = cy - 35;  // 为10像素底部距离 + 14像素按钮高度 + 11像素缓冲
 	m_sheetTable.MoveWindow(&tableRect);
+	
+	// 重新计算列宽度
+	ResizeTableColumns();
 	
 	// 调整底部按钮位置 - 距离底部10像素，按钮高度14像素
 	CWnd* pOKBtn = GetDlgItem(IDOK);
@@ -910,25 +977,39 @@ void SheetListWindow::StartEdit(int nItem, int nSubItem)
 
 void SheetListWindow::EndEdit(bool bSave)
 {
-	if (!m_pEditCtrl) {
-		return;
+	// 处理编辑控件
+	if (m_pEditCtrl) {
+		if (bSave && m_nEditItem >= 0 && m_nEditSubItem >= 0) {
+			CString strText;
+			m_pEditCtrl->GetWindowText(strText);
+			m_sheetTable.SetItemText(m_nEditItem, m_nEditSubItem, strText);
+			CadLogger::LogInfo(_T("图纸表格编辑: 行%d 列%d 新值: %s"), 
+							  m_nEditItem, m_nEditSubItem, strText);
+		}
+		m_pEditCtrl->DestroyWindow();
+		delete m_pEditCtrl;
+		m_pEditCtrl = nullptr;
 	}
 	
-	if (bSave && m_nEditItem >= 0 && m_nEditSubItem >= 0) {
-		// 保存编辑的内容
-		CString strText;
-		m_pEditCtrl->GetWindowText(strText);
-		m_sheetTable.SetItemText(m_nEditItem, m_nEditSubItem, strText);
-		
-		// 记录编辑操作
-		CadLogger::LogInfo(_T("图纸表格编辑: 行%d 列%d 新值: %s"), 
-						  m_nEditItem, m_nEditSubItem, strText);
+	// 处理下拉框控件
+	if (m_pComboCtrl) {
+		if (bSave && m_nEditItem >= 0 && m_nEditSubItem >= 0) {
+			CString strText;
+			m_pComboCtrl->GetWindowText(strText);
+			m_sheetTable.SetItemText(m_nEditItem, m_nEditSubItem, strText);
+			CadLogger::LogInfo(_T("图纸表格专业选择: 行%d 新值: %s"), m_nEditItem, strText);
+		}
+		m_pComboCtrl->DestroyWindow();
+		delete m_pComboCtrl;
+		m_pComboCtrl = nullptr;
 	}
 	
-	// 销毁编辑控件
-	m_pEditCtrl->DestroyWindow();
-	delete m_pEditCtrl;
-	m_pEditCtrl = nullptr;
+	// 处理按钮控件
+	if (m_pButtonCtrl) {
+		m_pButtonCtrl->DestroyWindow();
+		delete m_pButtonCtrl;
+		m_pButtonCtrl = nullptr;
+	}
 	
 	// 重置编辑位置
 	m_nEditItem = -1;
@@ -974,6 +1055,122 @@ CEdit* SheetListWindow::CreateEditControl(int nItem, int nSubItem)
 	pEdit->SetWindowText(strText);
 	
 	return pEdit;
+}
+
+CComboBox* SheetListWindow::CreateComboControl(int nItem, int nSubItem)
+{
+	// 如果已经在编辑，先结束当前编辑
+	EndEdit(true);
+	
+	// 检查参数有效性
+	if (nItem < 0 || nItem >= m_sheetTable.GetItemCount() || 
+		nSubItem != COL_SPECIALTY) {
+		return nullptr;
+	}
+	
+	// 记录编辑位置
+	m_nEditItem = nItem;
+	m_nEditSubItem = nSubItem;
+	
+	// 获取单元格的矩形区域
+	CRect rect;
+	if (!m_sheetTable.GetSubItemRect(nItem, nSubItem, LVIR_BOUNDS, rect)) {
+		return nullptr;
+	}
+	
+	// 创建下拉框控件
+	m_pComboCtrl = new CComboBox();
+	DWORD dwStyle = WS_CHILD | WS_VISIBLE | WS_BORDER | CBS_DROPDOWNLIST | WS_VSCROLL;
+	
+	// 调整高度以容纳下拉列表
+	rect.bottom += 150;
+	
+	if (!m_pComboCtrl->Create(dwStyle, rect, &m_sheetTable, 1002)) {
+		delete m_pComboCtrl;
+		m_pComboCtrl = nullptr;
+		return nullptr;
+	}
+	
+	// 初始化专业选项
+	InitializeSpecialtyCombo(m_pComboCtrl);
+	
+	// 设置字体
+	CFont* pFont = m_sheetTable.GetFont();
+	if (pFont) {
+		m_pComboCtrl->SetFont(pFont);
+	}
+	
+	// 设置当前选中项
+	CString currentText = m_sheetTable.GetItemText(nItem, nSubItem);
+	int index = m_pComboCtrl->FindStringExact(-1, currentText);
+	if (index != CB_ERR) {
+		m_pComboCtrl->SetCurSel(index);
+	}
+	
+	m_pComboCtrl->SetFocus();
+	m_pComboCtrl->ShowDropDown(TRUE);
+	
+	return m_pComboCtrl;
+}
+
+CButton* SheetListWindow::CreateButtonControl(int nItem, int nSubItem)
+{
+	// 如果已经在编辑，先结束当前编辑
+	EndEdit(true);
+	
+	// 检查参数有效性
+	if (nItem < 0 || nItem >= m_sheetTable.GetItemCount() || 
+		nSubItem != COL_OPERATION) {
+		return nullptr;
+	}
+	
+	// 记录编辑位置
+	m_nEditItem = nItem;
+	m_nEditSubItem = nSubItem;
+	
+	// 获取单元格的矩形区域
+	CRect rect;
+	if (!m_sheetTable.GetSubItemRect(nItem, nSubItem, LVIR_BOUNDS, rect)) {
+		return nullptr;
+	}
+	
+	// 调整按钮大小，确保有足够的高度和边距
+	rect.DeflateRect(3, 2); // 减少边距以获得更大的按钮区域
+	
+	// 确保按钮有足够的高度
+	if (rect.Height() < 20) {
+		int centerY = rect.CenterPoint().y;
+		rect.top = centerY - 10;
+		rect.bottom = centerY + 10;
+	}
+	
+	// 创建按钮控件
+	m_pButtonCtrl = new CButton();
+	DWORD dwStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_CENTER | WS_BORDER;
+	
+	if (!m_pButtonCtrl->Create(_T("选择文件"), dwStyle, rect, &m_sheetTable, 1003)) {
+		delete m_pButtonCtrl;
+		m_pButtonCtrl = nullptr;
+		return nullptr;
+	}
+	
+	// 设置字体
+	CFont* pFont = m_sheetTable.GetFont();
+	if (pFont) {
+		m_pButtonCtrl->SetFont(pFont);
+	}
+	
+	// 设置按钮为默认按钮样式，确保有边框
+	m_pButtonCtrl->ModifyStyle(0, BS_DEFPUSHBUTTON);
+	
+	// 强制重绘按钮
+	m_pButtonCtrl->Invalidate();
+	m_pButtonCtrl->UpdateWindow();
+	
+	// 设置定时器，延迟执行文件选择操作
+	SetTimer(1004, 100, nullptr); // 100ms后执行
+	
+	return m_pButtonCtrl;
 }
 
 std::wstring SheetListWindow::GetCurrentTimeString()
@@ -1039,4 +1236,108 @@ void SheetListWindow::OnEnChangeSheetBuildingNameEdit()
 void SheetListWindow::OnBnClickedSheetSearchGroup()
 {
 	// TODO: 在此添加控件通知处理程序代码
+}
+
+// 添加新方法：重新计算表格列宽度
+void SheetListWindow::ResizeTableColumns()
+{
+	CRect clientRect;
+	m_sheetTable.GetClientRect(&clientRect);
+	int totalWidth = clientRect.Width() - 30; // 减少边距
+	
+	// 如果窗口最大化，使用更精确的宽度计算
+	if (IsZoomed()) {
+		CRect windowRect;
+		GetWindowRect(&windowRect);
+		totalWidth = windowRect.Width() - 60;
+	}
+	
+	// 权重数组（与SetupSheetTable中保持一致）
+	int weights[] = { 4, 16, 14, 9, 8, 8, 6, 12, 8, 6, 9 };
+	
+	// 重新设置各列宽度
+	for (int i = 0; i < 11; i++) {
+		int columnWidth = (totalWidth * weights[i]) / 100;
+		// 设置最小列宽，操作列需要更大的最小宽度
+		int minWidth = (i == COL_OPERATION) ? 80 : 50;
+		if (columnWidth < minWidth) columnWidth = minWidth;
+		m_sheetTable.SetColumnWidth(i, columnWidth);
+	}
+}
+
+// 新增：初始化专业下拉框
+void SheetListWindow::InitializeSpecialtyCombo(CComboBox* pCombo)
+{
+	if (!pCombo) return;
+	
+	pCombo->ResetContent();
+	pCombo->AddString(_T("结构"));
+	pCombo->AddString(_T("围护(含室外)"));
+	pCombo->AddString(_T("装饰装修"));
+	pCombo->AddString(_T("给水排水"));
+	pCombo->AddString(_T("供热采暖"));
+	pCombo->AddString(_T("空调通风"));
+	pCombo->AddString(_T("电气"));
+	pCombo->AddString(_T("电梯"));
+	pCombo->AddString(_T("建筑智能化(含消防)"));
+}
+
+// 修改：获取专业文本
+CString SheetListWindow::GetSpecialtyText(int specialtyIndex)
+{
+	switch (specialtyIndex) {
+		case SPECIALTY_STRUCTURE: return _T("结构");
+		case SPECIALTY_ENVELOPE: return _T("围护(含室外)");
+		case SPECIALTY_DECORATION: return _T("装饰装修");
+		case SPECIALTY_WATER: return _T("给水排水");
+		case SPECIALTY_HEATING: return _T("供热采暖");
+		case SPECIALTY_HVAC: return _T("空调通风");
+		case SPECIALTY_ELECTRICAL: return _T("电气");
+		case SPECIALTY_ELEVATOR: return _T("电梯");
+		case SPECIALTY_INTELLIGENT: return _T("建筑智能化(含消防)");
+		default: return _T("结构");
+	}
+}
+
+// 修改：获取专业索引
+int SheetListWindow::GetSpecialtyIndex(const CString& specialtyText)
+{
+	if (specialtyText == _T("结构")) return SPECIALTY_STRUCTURE;
+	if (specialtyText == _T("围护(含室外)")) return SPECIALTY_ENVELOPE;
+	if (specialtyText == _T("装饰装修")) return SPECIALTY_DECORATION;
+	if (specialtyText == _T("给水排水")) return SPECIALTY_WATER;
+	if (specialtyText == _T("供热采暖")) return SPECIALTY_HEATING;
+	if (specialtyText == _T("空调通风")) return SPECIALTY_HVAC;
+	if (specialtyText == _T("电气")) return SPECIALTY_ELECTRICAL;
+	if (specialtyText == _T("电梯")) return SPECIALTY_ELEVATOR;
+	if (specialtyText == _T("建筑智能化(含消防)")) return SPECIALTY_INTELLIGENT;
+	return SPECIALTY_STRUCTURE;
+}
+
+// 添加定时器处理
+void SheetListWindow::OnTimer(UINT_PTR nIDEvent)
+{
+	if (nIDEvent == 1004) {
+		KillTimer(1004);
+		
+		// 执行文件选择操作
+		if (m_nEditItem >= 0) {
+			SelectFileForRow(m_nEditItem);
+		}
+		
+		// 销毁按钮控件
+		if (m_pButtonCtrl) {
+			m_pButtonCtrl->DestroyWindow();
+			delete m_pButtonCtrl;
+			m_pButtonCtrl = nullptr;
+		}
+		
+		// 重置编辑状态
+		m_nEditItem = -1;
+		m_nEditSubItem = -1;
+		
+		return;
+	}
+	
+	CAdUiBaseDialog::OnTimer(nIDEvent);
 }
