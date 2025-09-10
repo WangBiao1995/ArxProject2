@@ -13,7 +13,6 @@
   <ItemGroup>
     <ClCompile Include="acrxEntryPoint.cpp" />
     <ClCompile Include="ArxProject2.cpp" />
-    <ClCompile Include="src\common\CadLogger.cpp" />
     <ClCompile Include="src\common\Geometry\GePointUtil.cpp" />
     <ClCompile Include="src\common\SymbolTable\ViewUtil.cpp" />
     <ClCompile Include="src\views\BuildBuildingTableWindow.cpp" />
@@ -21,6 +20,7 @@
     <ClCompile Include="src\views\ManagerSystemLogin.cpp" />
     <ClCompile Include="src\views\SheetListWindow.cpp" />
     <ClCompile Include="src\commands\DialogCommand.cpp" />
+    <ClCompile Include="src\common\CadLogger.cpp" />
     <ClCompile Include="src\common\Database\SqlDB.cpp" />
     <ClCompile Include="src\common\Document\DwgDatabaseUtil.cpp" />
     <ClCompile Include="src\common\Others\ConvertUtil.cpp" />
@@ -37,7 +37,6 @@
     <ClCompile Include="src\views\TestDialog.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\common\CadLogger.h" />
     <ClInclude Include="src\common\Geometry\GePointUtil.h" />
     <ClInclude Include="src\common\SymbolTable\ViewUtil.h" />
     <ClInclude Include="src\views\BuildBuildingTableWindow.h" />
@@ -46,6 +45,7 @@
     <ClInclude Include="Resource.h" />
     <ClInclude Include="src\views\SheetListWindow.h" />
     <ClInclude Include="src\commands\DialogCommand.h" />
+    <ClInclude Include="src\common\CadLogger.h" />
     <ClInclude Include="src\common\Database\SqlDB.h" />
     <ClInclude Include="src\common\Document\DwgDatabaseUtil.h" />
     <ClInclude Include="src\common\Others\ConvertUtil.h" />

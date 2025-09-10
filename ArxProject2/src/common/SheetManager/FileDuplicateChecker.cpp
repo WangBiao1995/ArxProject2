@@ -38,30 +38,30 @@ std::wstring FileDuplicateChecker::calculateFileMD5(const std::wstring& filePath
     
     do {
         if (!CryptAcquireContext(&hProv, nullptr, nullptr, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
-            acutPrintf(_T("无法获取加密上下文"));
+            CadLogger::LogError(_T("无法获取加密上下文"));
             break;
         }
         
         if (!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash)) {
-            acutPrintf(_T("无法创建MD5哈希对象"));
+            CadLogger::LogError(_T("无法创建MD5哈希对象"));
             break;
         }
         
         hFile = CreateFile(filePath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
         if (hFile == INVALID_HANDLE_VALUE) {
-            acutPrintf(_T("无法打开文件计算MD5: %s"), filePath.c_str());
+            CadLogger::LogError(_T("无法打开文件计算MD5: %s"), filePath.c_str());
             break;
         }
         
         while (ReadFile(hFile, rgbFile, sizeof(rgbFile), &cbRead, nullptr) && cbRead > 0) {
             if (!CryptHashData(hHash, rgbFile, cbRead, 0)) {
-                acutPrintf(_T("计算MD5哈希失败"));
+                CadLogger::LogError(_T("计算MD5哈希失败"));
                 break;
             }
         }
         
         if (!CryptGetHashParam(hHash, HP_HASHVAL, rgbHash, &cbHash, 0)) {
-            acutPrintf(_T("获取MD5哈希值失败"));
+            CadLogger::LogError(_T("获取MD5哈希值失败"));
             break;
         }
         
@@ -323,7 +323,7 @@ void FileDuplicateChecker::saveRecords()
     
     std::wofstream file(m_recordsFilePath);
     if (!file.is_open()) {
-        acutPrintf(_T("无法保存文件记录: %s"), m_recordsFilePath.c_str());
+        CadLogger::LogError(_T("无法保存文件记录: %s"), m_recordsFilePath.c_str());
         return;
     }
     

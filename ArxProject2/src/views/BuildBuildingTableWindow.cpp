@@ -182,11 +182,11 @@ bool BuildBuildingTableWindow::createBuildingTable()
     std::wstring errorMsg;
     if (!SqlDB::executeQuery(sql, errorMsg)) {
         CString errMsg(errorMsg.c_str());
-        acutPrintf(_T("创建大楼信息表失败: %s"), errMsg);
+        CadLogger::LogError(_T("创建大楼信息表失败: %s"), errMsg);
         return false;
     }
     
-   acutPrintf(_T("大楼信息表创建成功或已存在"));
+    CadLogger::LogInfo(_T("大楼信息表创建成功或已存在"));
     return true;
 }
 
@@ -224,11 +224,11 @@ void BuildBuildingTableWindow::loadDataFromDatabase()
             }
         }
         
-       acutPrintf(_T("从数据库加载了 %d 条大楼数据"), static_cast<int>(m_buildingDataList.size()));
+        CadLogger::LogInfo(_T("从数据库加载了 %d 条大楼数据"), static_cast<int>(m_buildingDataList.size()));
     } else {
         // 查询失败，记录错误并使用示例数据
         CString errMsg(errorMsg.c_str());
-      
+        CadLogger::LogWarning(_T("从数据库加载数据失败: %s，使用示例数据"), errMsg);
         
         // 添加示例数据作为备用
         BuildingData sampleData1;
@@ -296,7 +296,7 @@ void BuildBuildingTableWindow::saveDataToDatabase()
     std::wstring errorMsg;
     if (!SqlDB::executeQuery(clearSql, errorMsg)) {
         CString errMsg(errorMsg.c_str());
-        acutPrintf(_T("清空大楼数据失败: %s"), errMsg);
+        CadLogger::LogError(_T("清空大楼数据失败: %s"), errMsg);
         AfxMessageBox(_T("保存失败：无法清空旧数据"));
         return;
     }
@@ -349,7 +349,7 @@ void BuildBuildingTableWindow::saveDataToDatabase()
     CString msg;
     msg.Format(_T("成功保存 %d/%d 条记录到数据库"), successCount, itemCount);
     AfxMessageBox(msg);
-   acutPrintf(_T("保存大楼数据: %s"), msg);
+    CadLogger::LogInfo(_T("保存大楼数据: %s"), msg);
 }
 
 //-----------------------------------------------------------------------------
@@ -368,7 +368,7 @@ bool BuildBuildingTableWindow::insertBuildingData(const BuildingData& data)
     std::wstring errorMsg;
     if (!SqlDB::executeQuery(sql, errorMsg)) {
         CString errMsg(errorMsg.c_str());
-        acutPrintf(_T("插入大楼数据失败: %s"), errMsg);
+        CadLogger::LogError(_T("插入大楼数据失败: %s"), errMsg);
         return false;
     }
     
@@ -439,7 +439,7 @@ void BuildBuildingTableWindow::filterData()
     
     CString msg;
     msg.Format(_T("筛选完成，共找到 %d 条记录"), m_buildingTable.GetItemCount());
-   acutPrintf(_T("筛选大楼数据: %s"), msg);
+    CadLogger::LogInfo(_T("筛选大楼数据: %s"), msg);
 }
 
 //-----------------------------------------------------------------------------
@@ -585,7 +585,7 @@ void BuildBuildingTableWindow::OnLvnEndlabeleditBuildingTable(NMHDR *pNMHDR, LRE
         CString newText = pDispInfo->item.pszText;
         
         // 记录编辑操作
-       acutPrintf(_T("表格编辑: 行%d 列%d 新值: %s"), nItem, nSubItem, newText);
+        CadLogger::LogInfo(_T("表格编辑: 行%d 列%d 新值: %s"), nItem, nSubItem, newText);
     } else {
         // 拒绝编辑（如果文本为空或无效）
         *pResult = FALSE;
@@ -796,7 +796,7 @@ void BuildBuildingTableWindow::endEdit(bool bSave)
         m_buildingTable.SetItemText(m_nEditItem, m_nEditSubItem, strText);
         
         // 记录编辑操作
-       acutPrintf(_T("表格编辑: 行%d 列%d 新值: %s"), 
+        CadLogger::LogInfo(_T("表格编辑: 行%d 列%d 新值: %s"), 
                           m_nEditItem, m_nEditSubItem, strText);
     }
     

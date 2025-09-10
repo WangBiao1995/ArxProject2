@@ -204,10 +204,10 @@ BOOL SheetListWindow::OnInitDialog()
 			OnFileStatusChanged(fileName, oldStatus, newStatus);
 		});
 		
-		acutPrintf(_T("文件管理器初始化成功"));
+		CadLogger::LogInfo(_T("文件管理器初始化成功"));
 		
 	} catch (...) {
-		acutPrintf(_T("文件管理器初始化失败"));
+		CadLogger::LogError(_T("文件管理器初始化失败"));
 		m_fileManager = nullptr;
 		m_statusManager = nullptr;
 	}
@@ -316,7 +316,61 @@ void SheetListWindow::SetupSheetTable()
 	}
 }
 
-
+void SheetListWindow::PopulateTableData()
+{
+	// 清空现有数据
+	m_sheetDataList.clear();
+	m_sheetTable.DeleteAllItems();
+	
+	// 添加示例数据
+	auto data1 = std::make_shared<SheetData>();
+	data1->name = _T("建筑平面图");
+	data1->buildingName = _T("A座办公楼");
+	data1->specialty = _T("结构");
+	data1->format = _T("dwg/dxf");
+	data1->status = _T("已上传");
+	data1->version = _T("v1.0");
+	data1->designUnit = _T("建筑设计院");
+	data1->createTime = _T("2024-01-15");
+	data1->creator = _T("张三");
+	data1->isSelected = false;
+	data1->filePath = _T("");
+	m_sheetDataList.push_back(data1);
+	
+	auto data2 = std::make_shared<SheetData>();
+	data2->name = _T("结构施工图");
+	data2->buildingName = _T("B座住宅楼");
+	data2->specialty = _T("结构");
+	data2->format = _T("pdf");
+	data2->status = _T("解析中");
+	data2->version = _T("v2.1");
+	data2->designUnit = _T("结构设计院");
+	data2->createTime = _T("2024-01-16");
+	data2->creator = _T("李四");
+	data2->isSelected = false;
+	data2->filePath = _T("");
+	m_sheetDataList.push_back(data2);
+	
+	auto data3 = std::make_shared<SheetData>();
+	data3->name = _T("给排水图");
+	data3->buildingName = _T("C座商业楼");
+	data3->specialty = _T("机电");
+	data3->format = _T("jpeg");
+	data3->status = _T("待上传");
+	data3->version = _T("v1.5");
+	data3->designUnit = _T("机电设计院");
+	data3->createTime = _T("2024-01-17");
+	data3->creator = _T("王五");
+	data3->isSelected = false;
+	data3->filePath = _T("");
+	m_sheetDataList.push_back(data3);
+	
+	// 保存原始数据用于筛选恢复
+	m_originalDataList = m_sheetDataList;
+	
+	// 填充表格
+	UpdateTableWithFilteredData(m_sheetDataList);
+}
 
 void SheetListWindow::UpdateTableWithFilteredData(const std::vector<std::shared_ptr<SheetData>>& filteredData)
 {
@@ -391,7 +445,7 @@ void SheetListWindow::OnBnClickedSheetFilterButton()
 		static_cast<int>(filteredData.size()));
 	
 	AfxMessageBox(message);
-	acutPrintf(_T("筛选图纸数据: %s"), message);
+	CadLogger::LogInfo(_T("筛选图纸数据: %s"), message);
 }
 
 void SheetListWindow::OnBnClickedSheetResetFilterButton()
@@ -533,7 +587,7 @@ void SheetListWindow::OnLvnEndlabeleditSheetTable(NMHDR* pNMHDR, LRESULT* pResul
 		int nSubItem = pDispInfo->item.iSubItem;
 		CString newText = pDispInfo->item.pszText;
 		
-		acutPrintf(_T("图纸表格编辑: 行%d 列%d 新值: %s"), nItem, nSubItem, newText);
+		CadLogger::LogInfo(_T("图纸表格编辑: 行%d 列%d 新值: %s"), nItem, nSubItem, newText);
 	} else {
 		// 拒绝编辑（如果文本为空或无效）
 		*pResult = FALSE;
@@ -933,7 +987,7 @@ void SheetListWindow::SelectFileForRow(int row)
 				fileName, data->name, data->format);
 			AfxMessageBox(message);
 			
-		 acutPrintf(_T("选择图纸文件: %s"), fileName);
+			CadLogger::LogInfo(_T("选择图纸文件: %s"), fileName);
 		}
 	}
 }
@@ -993,7 +1047,11 @@ void SheetListWindow::EndEdit(bool bSave)
 			CString strText;
 			m_pEditCtrl->GetWindowText(strText);
 			m_sheetTable.SetItemText(m_nEditItem, m_nEditSubItem, strText);
-			acutPrintf(_T("图纸表格编辑: 行%d 列%d 新值: %s"), 
+			
+			// 同步更新底层数据模型
+			UpdateDataModel(m_nEditItem, m_nEditSubItem, strText);
+			
+			CadLogger::LogInfo(_T("图纸表格编辑: 行%d 列%d 新值: %s"), 
 							  m_nEditItem, m_nEditSubItem, strText);
 		}
 		m_pEditCtrl->DestroyWindow();
@@ -1007,7 +1065,11 @@ void SheetListWindow::EndEdit(bool bSave)
 			CString strText;
 			m_pComboCtrl->GetWindowText(strText);
 			m_sheetTable.SetItemText(m_nEditItem, m_nEditSubItem, strText);
-			acutPrintf(_T("图纸表格专业选择: 行%d 新值: %s"), m_nEditItem, strText);
+			
+			// 同步更新底层数据模型
+			UpdateDataModel(m_nEditItem, m_nEditSubItem, strText);
+			
+			CadLogger::LogInfo(_T("图纸表格专业选择: 行%d 新值: %s"), m_nEditItem, strText);
 		}
 		m_pComboCtrl->DestroyWindow();
 		delete m_pComboCtrl;
@@ -1144,14 +1206,8 @@ CButton* SheetListWindow::CreateButtonControl(int nItem, int nSubItem)
 		return nullptr;
 	}
 	
-	// 调整按钮大小 - 宽度设为单元格的一半，居中显示
-	int originalWidth = rect.Width();
-	int buttonWidth = originalWidth / 2;
-	int centerX = rect.CenterPoint().x;
-	
-	rect.left = centerX - buttonWidth / 2;
-	rect.right = centerX + buttonWidth / 2;
-	rect.DeflateRect(2, 2); // 适当的边距
+	// 调整按钮大小，确保有足够的高度和边距
+	rect.DeflateRect(3, 2); // 减少边距以获得更大的按钮区域
 	
 	// 确保按钮有足够的高度
 	if (rect.Height() < 20) {
@@ -1160,10 +1216,9 @@ CButton* SheetListWindow::CreateButtonControl(int nItem, int nSubItem)
 		rect.bottom = centerY + 10;
 	}
 	
-	// 创建按钮控件 - 使用更明显的按钮样式
+	// 创建按钮控件
 	m_pButtonCtrl = new CButton();
-	DWORD dwStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_CENTER | 
-	               WS_BORDER | WS_TABSTOP;  // 添加WS_TABSTOP使按钮更明显
+	DWORD dwStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_CENTER | WS_BORDER;
 	
 	if (!m_pButtonCtrl->Create(_T("选择文件"), dwStyle, rect, &m_sheetTable, 1003)) {
 		delete m_pButtonCtrl;
@@ -1177,14 +1232,8 @@ CButton* SheetListWindow::CreateButtonControl(int nItem, int nSubItem)
 		m_pButtonCtrl->SetFont(pFont);
 	}
 	
-	// 设置按钮样式 - 使用3D效果的按钮样式
+	// 设置按钮为默认按钮样式，确保有边框
 	m_pButtonCtrl->ModifyStyle(0, BS_DEFPUSHBUTTON);
-	
-	// 设置按钮的扩展样式，增强视觉效果
-	m_pButtonCtrl->SetButtonStyle(BS_PUSHBUTTON | BS_CENTER);
-	
-	// 设置按钮的背景色为浅灰色，让它更明显
-	m_pButtonCtrl->ModifyStyleEx(0, WS_EX_CLIENTEDGE); // 添加客户端边框
 	
 	// 强制重绘按钮
 	m_pButtonCtrl->Invalidate();
@@ -1208,109 +1257,650 @@ std::wstring SheetListWindow::GetCurrentTimeString()
 
 void SheetListWindow::LoadDataFromDatabase()
 {
-	acutPrintf(_T("开始从数据库加载图纸数据"));
+	CadLogger::LogInfo(_T("开始从数据库加载图纸数据"));
 	
 	// 清空现有数据
 	m_sheetDataList.clear();
 	m_originalDataList.clear();
-	m_sheetTable.DeleteAllItems();
 	
-	// 参照BuildBuildingTableWindow的查询方式
-	std::wstring sql = L"SELECT id, name, building_name, specialty, format, status, "
-		L"version, design_unit, create_time, creator, is_selected, file_path "
-		L"FROM sheet_data ORDER BY created_at DESC";
+	try {
+		// 使用SqlDB加载数据
+		std::vector<DbSheetData> dbSheetList;
+		std::wstring errorMsg;
+		
+		if (!SqlDB::loadSheetData(dbSheetList, errorMsg)) {
+			CadLogger::LogError(_T("从数据库加载图纸数据失败: %s"), errorMsg.c_str());
+			// 如果加载失败，使用示例数据
+			PopulateTableData();
+			return;
+		}
+		
+		// 检查是否获取到数据
+		if (dbSheetList.empty()) {
+			CadLogger::LogInfo(_T("数据库中没有图纸数据，使用示例数据"));
+			// 如果数据库为空，使用示例数据
+			PopulateTableData();
+			return;
+		}
+		
+		// 转换数据格式
+		for (const auto& dbSheet : dbSheetList) {
+			auto sheetData = std::make_shared<SheetData>();
+			sheetData->name = dbSheet.name;
+			sheetData->buildingName = dbSheet.buildingName;
+			sheetData->specialty = dbSheet.specialty;
+			sheetData->format = dbSheet.format;
+			sheetData->status = dbSheet.status;
+			sheetData->version = dbSheet.version;
+			sheetData->designUnit = dbSheet.designUnit;
+			sheetData->createTime = dbSheet.createTime;
+			sheetData->creator = dbSheet.creator;
+			sheetData->isSelected = dbSheet.isSelected;
+			sheetData->filePath = dbSheet.filePath;
+			
+			m_sheetDataList.push_back(sheetData);
+		}
+		
+		// 保存原始数据用于筛选恢复
+		m_originalDataList = m_sheetDataList;
+		
+		// 更新表格显示
+		UpdateTableWithFilteredData(m_sheetDataList);
+		
+		CadLogger::LogInfo(_T("成功从数据库加载 %d 条图纸数据"), static_cast<int>(m_sheetDataList.size()));
+		
+	} catch (...) {
+		CadLogger::LogError(_T("加载图纸数据时发生异常"));
+		// 异常时使用示例数据
+		PopulateTableData();
+	}
+}
+
+void SheetListWindow::SaveDataToDatabase()
+{
+	CadLogger::LogInfo(_T("开始保存图纸数据到数据库"));
 	
-	std::wstring errorMsg;
-	std::vector<std::vector<std::wstring>> results;
+	try {
+		// 转换数据格式
+		std::vector<DbSheetData> dbSheetList;
+		
+		for (const auto& sheet : m_sheetDataList) {
+			DbSheetData dbSheet;
+			dbSheet.id = 0; // 数据库自动生成ID
+			dbSheet.name = sheet->name;
+			dbSheet.buildingName = sheet->buildingName;
+			dbSheet.specialty = sheet->specialty;
+			dbSheet.format = sheet->format;
+			dbSheet.status = sheet->status;
+			dbSheet.version = sheet->version;
+			dbSheet.designUnit = sheet->designUnit;
+			dbSheet.createTime = sheet->createTime;
+			dbSheet.creator = sheet->creator;
+			dbSheet.isSelected = sheet->isSelected;
+			dbSheet.filePath = sheet->filePath;
+			
+			dbSheetList.push_back(dbSheet);
+		}
+		
+		// 保存到数据库
+		std::wstring errorMsg;
+		if (!SqlDB::saveSheetData(dbSheetList, errorMsg)) {
+			CadLogger::LogError(_T("保存图纸数据到数据库失败: %s"), errorMsg.c_str());
+			AfxMessageBox(_T("保存数据失败！"));
+			return;
+		}
+		
+		CadLogger::LogInfo(_T("成功保存 %d 条图纸数据到数据库"), static_cast<int>(dbSheetList.size()));
+		
+	} catch (...) {
+		CadLogger::LogError(_T("保存图纸数据时发生异常"));
+		AfxMessageBox(_T("保存数据时发生异常！"));
+	}
+}
+
+bool SheetListWindow::CreateSheetTable()
+{
+	CadLogger::LogInfo(_T("开始创建图纸数据表"));
 	
-	// 执行查询
-	if (SqlDB::executeSelectQuery(sql, results, errorMsg)) {
-		// 处理查询结果
-		for (const auto& row : results) {
-			if (row.size() >= 12) {  // 确保有足够的列
-				auto sheetData = std::make_shared<SheetData>();
-				// 跳过id字段（row[0]），直接使用业务数据
-				sheetData->name = row[1];
-				sheetData->buildingName = row[2];
-				sheetData->specialty = row[3];
-				sheetData->format = row[4];
-				sheetData->status = row[5];
-				sheetData->version = row[6];
-				sheetData->designUnit = row[7];
-				sheetData->createTime = row[8];
-				sheetData->creator = row[9];
-				sheetData->isSelected = (row[10] == L"1" || row[10] == L"true" || row[10] == L"TRUE");
-				sheetData->filePath = row[11];
+	try {
+		// 定义表结构
+		std::wstring tableStructure = LR"(
+			(
+				id SERIAL PRIMARY KEY,
+				name VARCHAR(255) NOT NULL,
+				building_name VARCHAR(255),
+				specialty VARCHAR(100),
+				format VARCHAR(50),
+				status VARCHAR(50),
+				version VARCHAR(20),
+				design_unit VARCHAR(255),
+				create_time VARCHAR(50),
+				creator VARCHAR(100),
+				is_selected BOOLEAN DEFAULT FALSE,
+				file_path TEXT,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			)
+		)";
+		
+		// 创建表
+		if (!SqlDB::createSheetTable(L"sheet_data", tableStructure)) {
+			CadLogger::LogError(_T("创建图纸数据表失败"));
+			return false;
+		}
+		
+		CadLogger::LogInfo(_T("图纸数据表创建成功"));
+		return true;
+		
+	} catch (...) {
+		CadLogger::LogError(_T("创建图纸数据表时发生异常"));
+		return false;
+	}
+}
+
+//-----------------------------------------------------------------------------
+//----- 文件上传方法实现
+
+void SheetListWindow::UploadSelectedSheets()
+{
+	CadLogger::LogInfo(_T("开始上传选中的图纸"));
+	
+	try {
+		// 获取选中的图纸
+		auto selectedSheets = GetSelectedSheets();
+		
+		if (selectedSheets.empty()) {
+			AfxMessageBox(_T("请先选择要上传的图纸！"));
+			return;
+		}
+		
+		// 检查文件管理器是否已初始化
+		if (!m_fileManager) {
+			m_fileManager = new SheetFileManager();
+			
+			// 设置回调函数
+			m_fileManager->setUploadProgressCallback([this](const std::wstring& fileName, __int64 bytesSent, __int64 bytesTotal) {
+				// 创建数据结构
+				UploadProgressData* pData = new UploadProgressData();
+				pData->fileName = fileName;
+				pData->bytesSent = bytesSent;
+				pData->bytesTotal = bytesTotal;
 				
-				m_sheetDataList.push_back(sheetData);
+				// 发送消息到主线程
+				PostMessage(WM_UPLOAD_PROGRESS, 0, reinterpret_cast<LPARAM>(pData));
+			});
+			
+			m_fileManager->setUploadCompletedCallback([this](const std::wstring& fileName, bool success) {
+				// 创建数据结构
+				UploadCompletedData* pData = new UploadCompletedData();
+				pData->fileName = fileName;
+				pData->success = success;
+				
+				// 发送消息到主线程
+				PostMessage(WM_UPLOAD_COMPLETED, 0, reinterpret_cast<LPARAM>(pData));
+			});
+		}
+		
+		if (!m_statusManager) {
+			m_statusManager = new SheetStatusManager();
+			
+			// 设置状态变化回调
+			m_statusManager->setStatusChangedCallback([this](const std::wstring& fileName, SheetStatusManager::Status oldStatus, SheetStatusManager::Status newStatus) {
+				OnFileStatusChanged(fileName, oldStatus, newStatus);
+			});
+		}
+		
+		// 确认上传
+		CString message;
+		message.Format(_T("确定要上传 %d 个图纸文件吗？\n\n选中的文件：\n"), static_cast<int>(selectedSheets.size()));
+		
+		for (const auto& sheet : selectedSheets) {
+			CString fileName = PathFindFileName(sheet->filePath.c_str());
+			message += fileName + _T("\n");
+		}
+		
+		if (AfxMessageBox(message, MB_YESNO | MB_ICONQUESTION) != IDYES) {
+			return;
+		}
+		
+		// 创建上传任务
+		int taskCount = 0;
+		for (const auto& sheet : selectedSheets) {
+			// 检查文件是否存在
+			if (!PathFileExists(sheet->filePath.c_str())) {
+				CString msg;
+				msg.Format(_T("文件不存在：%s"), sheet->filePath.c_str());
+				CadLogger::LogWarning(msg);
+				continue;
+			}
+			
+			// 生成服务器文件名
+			std::wstring serverFileName = m_fileManager->generateFileName(
+				sheet->buildingName, sheet->specialty, sheet->version,
+				sheet->designUnit, sheet->creator, sheet->name);
+			
+			// 添加文件扩展名
+			CString ext = PathFindExtension(sheet->filePath.c_str());
+			serverFileName += ext.GetString();
+			
+			// 创建上传任务
+			UploadTask task;
+			task.localFilePath = sheet->filePath;
+			task.serverFileName = serverFileName;
+			task.buildingName = sheet->buildingName;
+			task.specialty = sheet->specialty;
+			task.version = sheet->version;
+			task.designUnit = sheet->designUnit;
+			task.creator = sheet->creator;
+			task.sheetName = sheet->name;
+			GetSystemTime(&task.createTime);
+			task.retryCount = 0;
+			task.isCompleted = false;
+			
+			// 添加到上传队列
+			m_fileManager->addUploadTask(task);
+			
+			// 设置初始状态
+			m_statusManager->setStatus(serverFileName, SheetStatusManager::PendingUpload);
+			
+			taskCount++;
+		}
+		
+		if (taskCount > 0) {
+			// 开始批量上传
+			m_fileManager->startBatchUpload();
+			
+			CString msg;
+			msg.Format(_T("已添加 %d 个上传任务，正在后台处理..."), taskCount);
+			AfxMessageBox(msg);
+			
+			CadLogger::LogInfo(_T("已添加 %d 个上传任务"), taskCount);
+		} else {
+			AfxMessageBox(_T("没有有效的文件可以上传！"));
+		}
+		
+	} catch (...) {
+		CadLogger::LogError(_T("上传图纸时发生异常"));
+		AfxMessageBox(_T("上传过程中发生异常！"));
+	}
+}
+
+std::vector<std::shared_ptr<SheetData>> SheetListWindow::GetSelectedSheets()
+{
+	std::vector<std::shared_ptr<SheetData>> selectedSheets;
+	
+	try {
+		for (const auto& sheet : m_sheetDataList) {
+			if (sheet->isSelected && !sheet->filePath.empty()) {
+				// 检查文件是否存在
+				if (PathFileExists(sheet->filePath.c_str())) {
+					selectedSheets.push_back(sheet);
+				} else {
+					CadLogger::LogWarning(_T("选中的文件不存在: %s"), sheet->filePath.c_str());
+				}
 			}
 		}
 		
-		acutPrintf(_T("从数据库加载了 %d 条图纸数据"), static_cast<int>(m_sheetDataList.size()));
-		
-		// 如果数据库中没有数据，添加示例数据
-		if (m_sheetDataList.empty()) {
-			acutPrintf(_T("数据库中没有图纸数据，添加示例数据"));
-			AddSampleData();
-		}
-		
-	} else {
-		// 查询失败，记录错误并使用示例数据
-		CString errMsg(errorMsg.c_str());
-		acutPrintf(_T("从数据库加载数据失败: %s，使用示例数据"), errMsg);
-		
-		// 使用示例数据作为备用
-		AddSampleData();
+	} catch (...) {
+		CadLogger::LogError(_T("获取选中图纸时发生异常"));
 	}
 	
-	// 保存原始数据用于筛选恢复
-	m_originalDataList = m_sheetDataList;
-	
-	// 更新表格显示
-	UpdateTableWithFilteredData(m_sheetDataList);
+	return selectedSheets;
 }
 
-// 新增方法：添加示例数据
-void SheetListWindow::AddSampleData()
+//-----------------------------------------------------------------------------
+//----- 上传回调方法实现
+
+void SheetListWindow::OnUploadProgress(const std::wstring& fileName, __int64 bytesSent, __int64 bytesTotal)
 {
-	acutPrintf(_T("添加示例图纸数据"));
-	
-	// 获取当前时间字符串
-	std::wstring currentTime = GetCurrentTimeString();
-	
-	// 示例数据1 - 建筑专业
-	auto data1 = std::make_shared<SheetData>();
-	data1->name = L"建筑平面图-1F";
-	data1->buildingName = L"A座办公楼";
-	data1->specialty = L"结构";
-	data1->format = L"dwg/dxf";
-	data1->status = L"已上传";
-	data1->version = L"v1.0";
-	data1->designUnit = L"北京建筑设计院";
-	data1->createTime = currentTime;
-	data1->creator = L"张工程师";
-	data1->isSelected = false;
-	data1->filePath = L"";
-	m_sheetDataList.push_back(data1);
-	
-	acutPrintf(_T("成功添加 %d 条示例图纸数据"), static_cast<int>(m_sheetDataList.size()));
+    try {
+        if (bytesTotal > 0) {
+            int progress = static_cast<int>((bytesSent * 100) / bytesTotal);
+            
+            // 显示并更新进度条
+            if (!m_isUploading) {
+                m_isUploading = true;
+                m_uploadProgressCtrl.ShowWindow(SW_SHOW);
+                m_uploadStatusLabel.ShowWindow(SW_SHOW);
+            }
+            
+            // 更新进度条
+            m_uploadProgressCtrl.SetPos(progress);
+            
+            // 更新状态标签
+            CString statusText;
+            statusText.Format(_T("正在上传: %s (%d%%)"), 
+                            CString(fileName.c_str()), progress);
+            m_uploadStatusLabel.SetWindowText(statusText);
+            
+            // 同时更新窗口标题
+            CString title;
+            title.Format(_T("图纸列表 - %s"), statusText);
+            SetWindowText(title);
+        }
+        
+    } catch (...) {
+        // 静默处理异常
+    }
 }
 
-// 同时优化原有的PopulateTableData方法，让它调用AddSampleData
-void SheetListWindow::PopulateTableData()
+void SheetListWindow::OnUploadCompleted(const std::wstring& fileName, bool success)
 {
-	// 清空现有数据
-	m_sheetDataList.clear();
-	m_sheetTable.DeleteAllItems();
+    try {
+        if (success) {
+            // 显示完成状态
+            m_uploadProgressCtrl.SetPos(100);
+            m_uploadStatusLabel.SetWindowText(_T("上传完成"));
+            
+            // 更新对应图纸的状态
+            UpdateSheetStatus(fileName, _T("已上传"));
+            
+            // 触发文本索引更新
+            UpdateTextIndexForUploadedFile(fileName);
+            
+        } else {
+            // 显示失败状态
+            m_uploadStatusLabel.SetWindowText(_T("上传失败"));
+            
+            // 更新对应图纸的状态
+            UpdateSheetStatus(fileName, _T("上传失败"));
+        }
+        
+        // 延迟隐藏进度条（3秒后）
+        SetTimer(2003, 3000, nullptr);
+        
+        // 刷新表格显示
+        Invalidate();
+        
+    } catch (...) {
+        m_uploadStatusLabel.SetWindowText(_T("处理上传结果时发生异常"));
+    }
+}
+
+void SheetListWindow::OnFileStatusChanged(const std::wstring& fileName, SheetStatusManager::Status oldStatus, SheetStatusManager::Status newStatus)
+{
+	try {
+		CString statusText = m_statusManager->getStatusText(newStatus).c_str();
+		CadLogger::LogInfo(_T("文件状态变化: %s -> %s"), fileName.c_str(), statusText);
+		
+		// 更新UI中对应的状态显示
+		UpdateSheetStatus(fileName, statusText);
+		
+	} catch (...) {
+		CadLogger::LogError(_T("处理文件状态变化时发生异常"));
+	}
+}
+
+//-----------------------------------------------------------------------------
+//----- 辅助方法实现
+
+void SheetListWindow::UpdateSheetStatus(const std::wstring& serverFileName, const CString& newStatus)
+{
+	try {
+		// 遍历数据列表，找到对应的图纸并更新状态
+		for (size_t i = 0; i < m_sheetDataList.size(); ++i) {
+			const auto& sheet = m_sheetDataList[i];
+			
+			// 生成对应的服务器文件名进行比较
+			std::wstring expectedServerName = m_fileManager->generateFileName(
+				sheet->buildingName, sheet->specialty, sheet->version,
+				sheet->designUnit, sheet->creator, sheet->name);
+			
+			CString ext = PathFindExtension(sheet->filePath.c_str());
+			expectedServerName += ext.GetString();
+			
+			if (expectedServerName == serverFileName) {
+				// 更新数据模型
+				sheet->status = newStatus.GetString();
+				
+				// 更新表格显示 - 这里需要根据实际的表格结构来更新
+				// 假设状态列是第5列（COL_STATUS）
+				m_sheetTable.SetItemText(static_cast<int>(i), COL_STATUS, newStatus);
+				break;
+			}
+		}
+		
+	} catch (...) {
+		CadLogger::LogError(_T("更新图纸状态时发生异常"));
+	}
+}
+
+void SheetListWindow::UpdateTextIndexForUploadedFile(const std::wstring& serverFileName)
+{
+	try {
+		// 找到对应的本地文件路径
+		std::wstring localFilePath;
+		
+		for (const auto& sheet : m_sheetDataList) {
+			std::wstring expectedServerName = m_fileManager->generateFileName(
+				sheet->buildingName, sheet->specialty, sheet->version,
+				sheet->designUnit, sheet->creator, sheet->name);
+			
+			CString ext = PathFindExtension(sheet->filePath.c_str());
+			expectedServerName += ext.GetString();
+			
+			if (expectedServerName == serverFileName) {
+				localFilePath = sheet->filePath;
+				break;
+			}
+		}
+		
+		if (!localFilePath.empty()) {
+			// 为上传的文件建立文本索引
+			std::wstring errorMsg;
+			if (!SearchTextInDwg::buildTextIndexForDrawing(localFilePath, errorMsg)) {
+				CadLogger::LogWarning(_T("为上传文件建立文本索引失败: %s"), errorMsg.c_str());
+			} else {
+				CadLogger::LogInfo(_T("成功为上传文件建立文本索引: %s"), serverFileName.c_str());
+			}
+		}
+		
+	} catch (...) {
+		CadLogger::LogError(_T("更新文本索引时发生异常"));
+	}
+}
+
+//-----------------------------------------------------------------------------
+//----- 在OnInitDialog中添加文件管理器初始化
+
+// 在OnInitDialog方法中添加以下代码：
+/*
+BOOL SheetListWindow::OnInitDialog()
+{
+    CAdUiBaseDialog::OnInitDialog();
+    
+    // ... 现有的初始化代码 ...
+    
+    // 初始化文件管理器
+    try {
+        m_fileManager = new SheetFileManager();
+        m_statusManager = new SheetStatusManager();
+        
+        // 设置回调函数
+        m_fileManager->setUploadProgressCallback([this](const std::wstring& fileName, __int64 bytesSent, __int64 bytesTotal) {
+            OnUploadProgress(fileName, bytesSent, bytesTotal);
+        });
+        
+        m_fileManager->setUploadCompletedCallback([this](const std::wstring& fileName, bool success) {
+            OnUploadCompleted(fileName, success);
+        });
+        
+        m_statusManager->setStatusChangedCallback([this](const std::wstring& fileName, SheetStatusManager::Status oldStatus, SheetStatusManager::Status newStatus) {
+            OnFileStatusChanged(fileName, oldStatus, newStatus);
+        });
+        
+        CadLogger::LogInfo(_T("文件管理器初始化成功"));
+        
+    } catch (...) {
+        CadLogger::LogError(_T("文件管理器初始化失败"));
+        m_fileManager = nullptr;
+        m_statusManager = nullptr;
+    }
+    
+    // ... 其余初始化代码 ...
+    
+    return TRUE;
+}
+*/
+
+// 添加新方法：重新计算表格列宽度
+void SheetListWindow::ResizeTableColumns()
+{
+	CRect clientRect;
+	m_sheetTable.GetClientRect(&clientRect);
+	int totalWidth = clientRect.Width() - 30; // 减少边距
 	
-	// 添加示例数据
-	AddSampleData();
+	// 如果窗口最大化，使用更精确的宽度计算
+	if (IsZoomed()) {
+		CRect windowRect;
+		GetWindowRect(&windowRect);
+		totalWidth = windowRect.Width() - 60;
+	}
 	
-	// 保存原始数据用于筛选恢复
-	m_originalDataList = m_sheetDataList;
+	// 权重数组（与SetupSheetTable中保持一致）
+	int weights[] = { 4, 16, 14, 9, 8, 8, 6, 12, 8, 6, 9 };
 	
-	// 填充表格
-	UpdateTableWithFilteredData(m_sheetDataList);
+	// 重新设置各列宽度
+	for (int i = 0; i < 11; i++) {
+		int columnWidth = (totalWidth * weights[i]) / 100;
+		// 设置最小列宽，操作列需要更大的最小宽度
+		int minWidth = (i == COL_OPERATION) ? 80 : 50;
+		if (columnWidth < minWidth) columnWidth = minWidth;
+		m_sheetTable.SetColumnWidth(i, columnWidth);
+	}
+}
+
+// 新增：初始化专业下拉框
+void SheetListWindow::InitializeSpecialtyCombo(CComboBox* pCombo)
+{
+	if (!pCombo) return;
+	
+	pCombo->ResetContent();
+	pCombo->AddString(_T("结构"));
+	pCombo->AddString(_T("围护(含室外)"));
+	pCombo->AddString(_T("装饰装修"));
+	pCombo->AddString(_T("给水排水"));
+	pCombo->AddString(_T("供热采暖"));
+	pCombo->AddString(_T("空调通风"));
+	pCombo->AddString(_T("电气"));
+	pCombo->AddString(_T("电梯"));
+	pCombo->AddString(_T("建筑智能化(含消防)"));
+}
+
+// 修改：获取专业文本
+CString SheetListWindow::GetSpecialtyText(int specialtyIndex)
+{
+	switch (specialtyIndex) {
+		case SPECIALTY_STRUCTURE: return _T("结构");
+		case SPECIALTY_ENVELOPE: return _T("围护(含室外)");
+		case SPECIALTY_DECORATION: return _T("装饰装修");
+		case SPECIALTY_WATER: return _T("给水排水");
+		case SPECIALTY_HEATING: return _T("供热采暖");
+		case SPECIALTY_HVAC: return _T("空调通风");
+		case SPECIALTY_ELECTRICAL: return _T("电气");
+		case SPECIALTY_ELEVATOR: return _T("电梯");
+		case SPECIALTY_INTELLIGENT: return _T("建筑智能化(含消防)");
+		default: return _T("结构");
+	}
+}
+
+// 修改：获取专业索引
+int SheetListWindow::GetSpecialtyIndex(const CString& specialtyText)
+{
+	if (specialtyText == _T("结构")) return SPECIALTY_STRUCTURE;
+	if (specialtyText == _T("围护(含室外)")) return SPECIALTY_ENVELOPE;
+	if (specialtyText == _T("装饰装修")) return SPECIALTY_DECORATION;
+	if (specialtyText == _T("给水排水")) return SPECIALTY_WATER;
+	if (specialtyText == _T("供热采暖")) return SPECIALTY_HEATING;
+	if (specialtyText == _T("空调通风")) return SPECIALTY_HVAC;
+	if (specialtyText == _T("电气")) return SPECIALTY_ELECTRICAL;
+	if (specialtyText == _T("电梯")) return SPECIALTY_ELEVATOR;
+	if (specialtyText == _T("建筑智能化(含消防)")) return SPECIALTY_INTELLIGENT;
+	return SPECIALTY_STRUCTURE;
+}
+
+// 添加定时器处理
+void SheetListWindow::OnTimer(UINT_PTR nIDEvent)
+{
+    if (nIDEvent == 1004) {
+        KillTimer(1004);
+        
+        // 执行文件选择操作
+        if (m_nEditItem >= 0) {
+            SelectFileForRow(m_nEditItem);
+        }
+        
+        // 销毁按钮控件
+        if (m_pButtonCtrl) {
+            m_pButtonCtrl->DestroyWindow();
+            delete m_pButtonCtrl;
+            m_pButtonCtrl = nullptr;
+        }
+        
+        // 重置编辑状态
+        m_nEditItem = -1;
+        m_nEditSubItem = -1;
+        
+        return;
+    }
+    else if (nIDEvent == 2003) {
+        // 隐藏进度条和状态标签
+        KillTimer(2003);
+        m_uploadProgressCtrl.ShowWindow(SW_HIDE);
+        m_uploadStatusLabel.ShowWindow(SW_HIDE);
+        m_isUploading = false;
+        
+        // 恢复窗口标题
+        SetWindowText(_T("图纸列表"));
+        
+        return;
+    }
+    
+    CAdUiBaseDialog::OnTimer(nIDEvent);
+}
+
+//-----------------------------------------------------------------------------
+//----- 缺失的消息处理方法实现
+
+void SheetListWindow::OnEnChangeSheetBuildingNameEdit()
+{
+    // 处理大楼名称编辑框内容变化事件
+    // 这个方法通常用于实时筛选或验证输入
+    
+    try {
+        CString buildingName;
+        m_buildingNameEdit.GetWindowText(buildingName);
+        
+        // 记录输入变化（可选）
+        CadLogger::LogInfo(_T("大楼名称输入变化: %s"), buildingName);
+        
+        // 如果需要实时筛选，可以在这里添加逻辑
+        // 但通常建议使用定时器避免频繁操作
+        
+    } catch (...) {
+        CadLogger::LogError(_T("处理大楼名称编辑框变化时发生异常"));
+    }
+}
+
+void SheetListWindow::OnBnClickedSheetSearchGroup()
+{
+    // 处理搜索组框按钮点击事件
+    // 这个方法可能用于展开/收起搜索区域或执行搜索操作
+    
+    try {
+        CadLogger::LogInfo(_T("搜索组框按钮被点击"));
+        
+        // 根据实际需求实现功能
+        // 例如：展开/收起筛选区域
+        // 或者：执行快速搜索
+        // 或者：重置搜索条件
+        
+        // 示例：显示提示信息
+        // AfxMessageBox(_T("搜索功能开发中..."));
+        
+    } catch (...) {
+        CadLogger::LogError(_T("处理搜索组框按钮点击时发生异常"));
+    }
 }
 
 LRESULT SheetListWindow::OnUploadProgressMessage(WPARAM wParam, LPARAM lParam)
@@ -1368,532 +1958,94 @@ void SheetListWindow::CreateProgressControls()
     m_uploadStatusLabel.ShowWindow(SW_HIDE);  // 初始隐藏
 }
 
-//-----------------------------------------------------------------------------
-//----- 缺失的消息处理方法实现
-
-void SheetListWindow::OnTimer(UINT_PTR nIDEvent)
+// 新增方法：更新数据模型
+void SheetListWindow::UpdateDataModel(int nItem, int nSubItem, const CString& newValue)
 {
-    if (nIDEvent == 1004) {
-        KillTimer(1004);
-        
-        // 执行文件选择操作
-        if (m_nEditItem >= 0) {
-            SelectFileForRow(m_nEditItem);
-        }
-        
-        // 销毁按钮控件
-        if (m_pButtonCtrl) {
-            m_pButtonCtrl->DestroyWindow();
-            delete m_pButtonCtrl;
-            m_pButtonCtrl = nullptr;
-        }
-        
-        // 重置编辑状态
-        m_nEditItem = -1;
-        m_nEditSubItem = -1;
-        
-        return;
-    }
-    else if (nIDEvent == 2003) {
-        // 隐藏进度条和状态标签
-        KillTimer(2003);
-        if (::IsWindow(m_uploadProgressCtrl.GetSafeHwnd())) {
-            m_uploadProgressCtrl.ShowWindow(SW_HIDE);
-        }
-        if (::IsWindow(m_uploadStatusLabel.GetSafeHwnd())) {
-            m_uploadStatusLabel.ShowWindow(SW_HIDE);
-        }
-        m_isUploading = false;
-        
-        // 恢复窗口标题
-        SetWindowText(_T("图纸列表"));
-        
-        return;
-    }
-    
-    CAdUiBaseDialog::OnTimer(nIDEvent);
-}
-
-void SheetListWindow::OnEnChangeSheetBuildingNameEdit()
-{
-    // 处理大楼名称编辑框内容变化事件
-    try {
-        CString buildingName;
-        m_buildingNameEdit.GetWindowText(buildingName);
-        
-        // 记录输入变化（可选）
-       acutPrintf(_T("大楼名称输入变化: %s"), buildingName);
-        
-        // 如果需要实时筛选，可以在这里添加逻辑
-        // 但通常建议使用定时器避免频繁操作
-        
-    } catch (...) {
-        acutPrintf(_T("处理大楼名称编辑框变化时发生异常"));
-    }
-}
-
-void SheetListWindow::OnBnClickedSheetSearchGroup()
-{
-    // 处理搜索组框按钮点击事件
-    try {
-       acutPrintf(_T("搜索组框按钮被点击"));
-        
-        // 根据实际需求实现功能
-        // 例如：展开/收起筛选区域
-        // 或者：执行快速搜索
-        // 或者：重置搜索条件
-        
-        // 示例：显示提示信息
-        AfxMessageBox(_T("搜索功能开发中..."));
-        
-    } catch (...) {
-        acutPrintf(_T("处理搜索组框按钮点击时发生异常"));
-    }
-}
-
-//-----------------------------------------------------------------------------
-//----- 数据库操作方法实现（优化版本）
-
-bool SheetListWindow::CreateSheetTable()
-{
-   acutPrintf(_T("开始创建图纸数据表"));
-    
-    // 参照BuildBuildingTableWindow的简洁实现
-    std::wstring sql = L"CREATE TABLE IF NOT EXISTS sheet_data ("
-        L"id SERIAL PRIMARY KEY, "
-        L"name VARCHAR(255) NOT NULL, "
-        L"building_name VARCHAR(255), "
-        L"specialty VARCHAR(100), "
-        L"format VARCHAR(50), "
-        L"status VARCHAR(50), "
-        L"version VARCHAR(20), "
-        L"design_unit VARCHAR(255), "
-        L"create_time VARCHAR(50), "
-        L"creator VARCHAR(100), "
-        L"is_selected BOOLEAN DEFAULT FALSE, "
-        L"file_path TEXT, "
-        L"created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-        L")";
-    
-    std::wstring errorMsg;
-    if (!SqlDB::executeQuery(sql, errorMsg)) {
-        CString errMsg(errorMsg.c_str());
-        acutPrintf(_T("创建图纸数据表失败: %s"), errMsg);
-        return false;
-    }
-    
-   acutPrintf(_T("图纸数据表创建成功或已存在"));
-    return true;
-}
-
-void SheetListWindow::SaveDataToDatabase()
-{
-    acutPrintf(_T("开始保存图纸数据到数据库"));
-				
-    // 检查数据库连接
-    if (!SqlDB::isDatabaseOpen()) {
-        acutPrintf(_T("\n数据库未连接，尝试重新连接"));
-        if (!SqlDB::initDatabase()) {
-            AfxMessageBox(_T("数据库连接失败，无法保存数据！"));
-            return;
-        }
-    }
-    acutPrintf(_T("数据库连接检查完成"));
-    
-    // 确保表存在
-    if (!CreateSheetTable()) {
-        AfxMessageBox(_T("创建数据表失败，无法保存数据！"));
-        return;
-    }
-    acutPrintf(_T("数据表检查完成"));
-    
-    // 先清空数据库中的旧数据
-    acutPrintf(_T("开始清空旧数据"));
-    std::wstring clearSql = L"DELETE FROM sheet_data";
-    std::wstring errorMsg;
-    
-    // 使用executeNonQuery方法执行DELETE语句
-    if (!SqlDB::executeNonQuery(clearSql, errorMsg)) {
-        CString errMsg(errorMsg.c_str());
-        acutPrintf(_T("\n清空图纸数据失败: %s"), errMsg);
-        AfxMessageBox(_T("保存失败：无法清空旧数据\n错误信息：") + errMsg);
-        return;
-    }
-    acutPrintf(_T("清空旧数据完成"));
-    
-    // 从表格中读取数据并保存到数据库
-    int itemCount = m_sheetTable.GetItemCount();
-    acutPrintf(_T("开始保存数据，共 %d 条记录"), itemCount);
-    int successCount = 0;
-    
-    for (int i = 0; i < itemCount; ++i) {
-        acutPrintf(_T("正在处理第 %d 条记录"), i + 1);
-        
-        SheetData data;
-        
-        // 从CString转换到wstring
-        CString temp;
-        temp = m_sheetTable.GetItemText(i, COL_NAME);
-        data.name = std::wstring(temp);
-        
-        temp = m_sheetTable.GetItemText(i, COL_BUILDING);
-        data.buildingName = std::wstring(temp);
-        
-        temp = m_sheetTable.GetItemText(i, COL_SPECIALTY);
-        data.specialty = std::wstring(temp);
-        
-        temp = m_sheetTable.GetItemText(i, COL_FORMAT);
-        data.format = std::wstring(temp);
-        
-        temp = m_sheetTable.GetItemText(i, COL_STATUS);
-        data.status = std::wstring(temp);
-        
-        temp = m_sheetTable.GetItemText(i, COL_VERSION);
-        data.version = std::wstring(temp);
-        
-        temp = m_sheetTable.GetItemText(i, COL_DESIGN_UNIT);
-        data.designUnit = std::wstring(temp);
-        
-        temp = m_sheetTable.GetItemText(i, COL_CREATE_TIME);
-        data.createTime = std::wstring(temp);
-        
-        temp = m_sheetTable.GetItemText(i, COL_CREATOR);
-        data.creator = std::wstring(temp);
-        
-        // 获取选中状态和文件路径
-        data.isSelected = (m_sheetTable.GetCheck(i) == TRUE);
-        if (i < static_cast<int>(m_sheetDataList.size())) {
-            data.filePath = m_sheetDataList[i]->filePath;
-        } else {
-            data.filePath = L"";
-        }
-        
-        // 如果创建时间为空，设置当前时间
-        if (data.createTime.empty()) {
-            data.createTime = GetCurrentTimeString();
-        }
-        
-        // 如果创建人为空，设置默认值
-        if (data.creator.empty()) {
-            data.creator = L"系统用户";
-        }
-        
-        if (InsertSheetData(data)) {
-            successCount++;
-            acutPrintf(_T("第 %d 条记录插入成功"), i + 1);
-        } else {
-            acutPrintf(_T("保存第 %d 行数据失败"), i + 1);
-        }
-    }
-    
-    // 显示结果
-    CString msg;
-    msg.Format(_T("成功保存 %d/%d 条记录到数据库"), successCount, itemCount);
-    AfxMessageBox(msg);
-    acutPrintf(_T("保存图纸数据: %s"), msg);
-}
-
-bool SheetListWindow::InsertSheetData(const SheetData& data)
-{
-    // 转义单引号，防止SQL注入
-    auto escapeSqlString = [](const std::wstring& input) -> std::wstring {
-        std::wstring result = input;
-        size_t pos = 0;
-        while ((pos = result.find(L"'", pos)) != std::wstring::npos) {
-            result.replace(pos, 1, L"''");
-            pos += 2;
-        }
-        return result;
-    };
-    
-    // 构建SQL语句
-    std::wstring sql = L"INSERT INTO sheet_data (name, building_name, specialty, format, status, "
-        L"version, design_unit, create_time, creator, is_selected, file_path) VALUES ('";
-    sql += escapeSqlString(data.name) + L"', '";
-    sql += escapeSqlString(data.buildingName) + L"', '";
-    sql += escapeSqlString(data.specialty) + L"', '";
-    sql += escapeSqlString(data.format) + L"', '";
-    sql += escapeSqlString(data.status) + L"', '";
-    sql += escapeSqlString(data.version) + L"', '";
-    sql += escapeSqlString(data.designUnit) + L"', '";
-    sql += escapeSqlString(data.createTime) + L"', '";
-    sql += escapeSqlString(data.creator) + L"', ";
-    sql += data.isSelected ? L"TRUE" : L"FALSE";
-    sql += L", '";
-    sql += escapeSqlString(data.filePath) + L"')";
-    
-    // 输出SQL语句用于调试
-    acutPrintf(_T("执行SQL: %s"), sql.c_str());
-    
-    // 使用executeNonQuery方法执行INSERT语句
-    std::wstring errorMsg;
-    if (!SqlDB::executeNonQuery(sql, errorMsg)) {
-        CString errMsg(errorMsg.c_str());
-        acutPrintf(_T("插入图纸数据失败: %s"), errMsg);
-        acutPrintf(_T("失败的SQL: %s"), sql.c_str());
-        return false;
-    }
-    
-    return true;
-}
-
-//-----------------------------------------------------------------------------
-//----- 上传相关方法实现
-
-void SheetListWindow::UploadSelectedSheets()
-{
-   acutPrintf(_T("开始上传选中的图纸"));
-    
-    try {
-        // 获取选中的图纸
-        auto selectedSheets = GetSelectedSheets();
-        
-        if (selectedSheets.empty()) {
-            AfxMessageBox(_T("请先选择要上传的图纸！"));
-            return;
-        }
-        
-        // 简化的上传逻辑 - 仅更新状态
-        for (const auto& sheet : selectedSheets) {
-            // 更新状态为"上传中"
-            for (int i = 0; i < m_sheetTable.GetItemCount(); ++i) {
-                CString sheetName = m_sheetTable.GetItemText(i, COL_NAME);
-                if (sheetName == sheet->name.c_str()) {
-                    m_sheetTable.SetItemText(i, COL_STATUS, _T("上传中"));
-                    break;
-                }
-            }
-        }
-        
-        // 模拟上传完成
-        CString msg;
-        msg.Format(_T("已开始上传 %d 个图纸文件"), static_cast<int>(selectedSheets.size()));
-        AfxMessageBox(msg);
-        
-       acutPrintf(_T("上传操作已启动，共 %d 个文件"), static_cast<int>(selectedSheets.size()));
-        
-    } catch (...) {
-        acutPrintf(_T("上传图纸时发生异常"));
-        AfxMessageBox(_T("上传过程中发生异常！"));
-    }
-}
-
-std::vector<std::shared_ptr<SheetData>> SheetListWindow::GetSelectedSheets()
-{
-    std::vector<std::shared_ptr<SheetData>> selectedSheets;
-    
-    try {
-        for (const auto& sheet : m_sheetDataList) {
-            if (sheet->isSelected) {
-                selectedSheets.push_back(sheet);
-            }
-        }
-        
-    } catch (...) {
-        acutPrintf(_T("获取选中图纸时发生异常"));
-    }
-    
-    return selectedSheets;
-}
-
-//-----------------------------------------------------------------------------
-//----- 上传回调方法实现
-
-void SheetListWindow::OnUploadProgress(const std::wstring& fileName, __int64 bytesSent, __int64 bytesTotal)
-{
-    try {
-        if (bytesTotal > 0) {
-            int progress = static_cast<int>((bytesSent * 100) / bytesTotal);
-            
-            // 显示并更新进度条
-            if (!m_isUploading) {
-                m_isUploading = true;
-                if (::IsWindow(m_uploadProgressCtrl.GetSafeHwnd())) {
-                    m_uploadProgressCtrl.ShowWindow(SW_SHOW);
-                }
-                if (::IsWindow(m_uploadStatusLabel.GetSafeHwnd())) {
-                    m_uploadStatusLabel.ShowWindow(SW_SHOW);
-                }
-            }
-            
-            // 更新进度条
-            if (::IsWindow(m_uploadProgressCtrl.GetSafeHwnd())) {
-                m_uploadProgressCtrl.SetPos(progress);
-            }
-            
-            // 更新状态标签
-            if (::IsWindow(m_uploadStatusLabel.GetSafeHwnd())) {
-                CString statusText;
-                statusText.Format(_T("正在上传: %s (%d%%)"), 
-                                CString(fileName.c_str()), progress);
-                m_uploadStatusLabel.SetWindowText(statusText);
-            }
-            
-            // 同时更新窗口标题
-            CString title;
-            title.Format(_T("图纸列表 - 正在上传 (%d%%)"), progress);
-            SetWindowText(title);
-        }
-        
-    } catch (...) {
-        // 静默处理异常
-    }
-}
-
-void SheetListWindow::OnUploadCompleted(const std::wstring& fileName, bool success)
-{
-    try {
-        if (success) {
-            // 显示完成状态
-            if (::IsWindow(m_uploadProgressCtrl.GetSafeHwnd())) {
-                m_uploadProgressCtrl.SetPos(100);
-            }
-            if (::IsWindow(m_uploadStatusLabel.GetSafeHwnd())) {
-                m_uploadStatusLabel.SetWindowText(_T("上传完成"));
-            }
-            
-            // 更新对应图纸的状态
-            UpdateSheetStatus(fileName, _T("已上传"));
-            
-        } else {
-            // 显示失败状态
-            if (::IsWindow(m_uploadStatusLabel.GetSafeHwnd())) {
-                m_uploadStatusLabel.SetWindowText(_T("上传失败"));
-            }
-            
-            // 更新对应图纸的状态
-            UpdateSheetStatus(fileName, _T("上传失败"));
-        }
-        
-        // 延迟隐藏进度条（3秒后）
-        SetTimer(2003, 3000, nullptr);
-        
-        // 刷新表格显示
-        Invalidate();
-        
-    } catch (...) {
-        if (::IsWindow(m_uploadStatusLabel.GetSafeHwnd())) {
-            m_uploadStatusLabel.SetWindowText(_T("处理上传结果时发生异常"));
-        }
-    }
-}
-
-void SheetListWindow::OnFileStatusChanged(const std::wstring& fileName, SheetStatusManager::Status oldStatus, SheetStatusManager::Status newStatus)
-{
-    try {
-        // 简化实现 - 仅记录日志
-       acutPrintf(_T("文件状态变化: %s"), fileName.c_str());
-        
-    } catch (...) {
-        acutPrintf(_T("处理文件状态变化时发生异常"));
-    }
-}
-
-//-----------------------------------------------------------------------------
-//----- 辅助方法实现
-
-void SheetListWindow::UpdateSheetStatus(const std::wstring& fileName, const CString& newStatus)
-{
-    try {
-        // 简化实现 - 更新第一个匹配的图纸状态
-        for (int i = 0; i < m_sheetTable.GetItemCount(); ++i) {
-            CString sheetName = m_sheetTable.GetItemText(i, COL_NAME);
-            if (sheetName.Find(CString(fileName.c_str())) >= 0) {
-                m_sheetTable.SetItemText(i, COL_STATUS, newStatus);
-                break;
-            }
-        }
-        
-    } catch (...) {
-        acutPrintf(_T("更新图纸状态时发生异常"));
-    }
-}
-
-void SheetListWindow::UpdateTextIndexForUploadedFile(const std::wstring& fileName)
-{
-    try {
-       acutPrintf(_T("为上传文件建立文本索引: %s"), fileName.c_str());
-        
-        // 简化实现 - 仅记录日志
-        // 实际实现需要调用SearchTextInDwg相关方法
-        
-    } catch (...) {
-        acutPrintf(_T("更新文本索引时发生异常"));
-    }
-}
-
-// 添加新方法：重新计算表格列宽度
-void SheetListWindow::ResizeTableColumns()
-{
-    CRect clientRect;
-    m_sheetTable.GetClientRect(&clientRect);
-    int totalWidth = clientRect.Width() - 30; // 减少边距
-    
-    // 如果窗口最大化，使用更精确的宽度计算
-    if (IsZoomed()) {
-        CRect windowRect;
-        GetWindowRect(&windowRect);
-        totalWidth = windowRect.Width() - 60;
-    }
-    
-    // 权重数组（与SetupSheetTable中保持一致）
-    int weights[] = { 4, 16, 14, 9, 8, 8, 6, 12, 8, 6, 9 };
-    
-    // 重新设置各列宽度
-    for (int i = 0; i < 11; i++) {
-        int columnWidth = (totalWidth * weights[i]) / 100;
-        // 设置最小列宽，操作列需要更大的最小宽度
-        int minWidth = (i == COL_OPERATION) ? 80 : 50;
-        if (columnWidth < minWidth) columnWidth = minWidth;
-        m_sheetTable.SetColumnWidth(i, columnWidth);
-    }
-}
-
-// 新增：初始化专业下拉框
-void SheetListWindow::InitializeSpecialtyCombo(CComboBox* pCombo)
-{
-    if (!pCombo) return;
-    
-    pCombo->ResetContent();
-    pCombo->AddString(_T("结构"));
-    pCombo->AddString(_T("围护(含室外)"));
-    pCombo->AddString(_T("装饰装修"));
-    pCombo->AddString(_T("给水排水"));
-    pCombo->AddString(_T("供热采暖"));
-    pCombo->AddString(_T("空调通风"));
-    pCombo->AddString(_T("电气"));
-    pCombo->AddString(_T("电梯"));
-    pCombo->AddString(_T("建筑智能化(含消防)"));
-}
-
-// 修改：获取专业文本
-CString SheetListWindow::GetSpecialtyText(int specialtyIndex)
-{
-    switch (specialtyIndex) {
-        case SPECIALTY_STRUCTURE: return _T("结构");
-        case SPECIALTY_ENVELOPE: return _T("围护(含室外)");
-        case SPECIALTY_DECORATION: return _T("装饰装修");
-        case SPECIALTY_WATER: return _T("给水排水");
-        case SPECIALTY_HEATING: return _T("供热采暖");
-        case SPECIALTY_HVAC: return _T("空调通风");
-        case SPECIALTY_ELECTRICAL: return _T("电气");
-        case SPECIALTY_ELEVATOR: return _T("电梯");
-        case SPECIALTY_INTELLIGENT: return _T("建筑智能化(含消防)");
-        default: return _T("结构");
-    }
-}
-
-// 修改：获取专业索引
-int SheetListWindow::GetSpecialtyIndex(const CString& specialtyText)
-{
-    if (specialtyText == _T("结构")) return SPECIALTY_STRUCTURE;
-    if (specialtyText == _T("围护(含室外)")) return SPECIALTY_ENVELOPE;
-    if (specialtyText == _T("装饰装修")) return SPECIALTY_DECORATION;
-    if (specialtyText == _T("给水排水")) return SPECIALTY_WATER;
-    if (specialtyText == _T("供热采暖")) return SPECIALTY_HEATING;
-    if (specialtyText == _T("空调通风")) return SPECIALTY_HVAC;
-    if (specialtyText == _T("电气")) return SPECIALTY_ELECTRICAL;
-    if (specialtyText == _T("电梯")) return SPECIALTY_ELEVATOR;
-    if (specialtyText == _T("建筑智能化(含消防)")) return SPECIALTY_INTELLIGENT;
-    return SPECIALTY_STRUCTURE;
+	try {
+		// 检查索引有效性
+		if (nItem < 0 || nItem >= static_cast<int>(m_sheetDataList.size())) {
+			CadLogger::LogWarning(_T("更新数据模型时行索引无效: %d"), nItem);
+			return;
+		}
+		
+		auto& sheetData = m_sheetDataList[nItem];
+		std::wstring newValueW = newValue.GetString();
+		
+		// 根据列索引更新对应的数据字段
+		switch (nSubItem) {
+			case COL_NAME:
+				sheetData->name = newValueW;
+				break;
+			case COL_BUILDING:
+				sheetData->buildingName = newValueW;
+				break;
+			case COL_SPECIALTY:
+				sheetData->specialty = newValueW;
+				break;
+			case COL_FORMAT:
+				sheetData->format = newValueW;
+				break;
+			case COL_STATUS:
+				sheetData->status = newValueW;
+				break;
+			case COL_VERSION:
+				sheetData->version = newValueW;
+				break;
+			case COL_DESIGN_UNIT:
+				sheetData->designUnit = newValueW;
+				break;
+			case COL_CREATE_TIME:
+				sheetData->createTime = newValueW;
+				break;
+			case COL_CREATOR:
+				sheetData->creator = newValueW;
+				break;
+			default:
+				CadLogger::LogWarning(_T("未处理的列索引: %d"), nSubItem);
+				break;
+		}
+		
+		// 同时更新原始数据列表（用于筛选恢复）
+		for (auto& originalData : m_originalDataList) {
+			if (originalData->name == sheetData->name && 
+				originalData->buildingName == sheetData->buildingName) {
+				// 找到对应的原始数据并更新
+				switch (nSubItem) {
+					case COL_NAME:
+						originalData->name = newValueW;
+						break;
+					case COL_BUILDING:
+						originalData->buildingName = newValueW;
+						break;
+					case COL_SPECIALTY:
+						originalData->specialty = newValueW;
+						break;
+					case COL_FORMAT:
+						originalData->format = newValueW;
+						break;
+					case COL_STATUS:
+						originalData->status = newValueW;
+						break;
+					case COL_VERSION:
+						originalData->version = newValueW;
+						break;
+					case COL_DESIGN_UNIT:
+						originalData->designUnit = newValueW;
+						break;
+					case COL_CREATE_TIME:
+						originalData->createTime = newValueW;
+						break;
+					case COL_CREATOR:
+						originalData->creator = newValueW;
+						break;
+				}
+				break;
+			}
+		}
+		
+		CadLogger::LogInfo(_T("数据模型已更新: 行%d 列%d 新值: %s"), nItem, nSubItem, newValue);
+		
+	} catch (...) {
+		CadLogger::LogError(_T("更新数据模型时发生异常"));
+	}
 }
