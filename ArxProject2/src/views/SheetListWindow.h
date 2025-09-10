@@ -105,6 +105,11 @@ private:
 	CListCtrl m_sheetTable;
 	CFont m_headerFont;  // 新增：表头粗体字体
 	
+	// 进度条相关控件
+	CProgressCtrl m_uploadProgressCtrl;  // 上传进度条
+	CStatic m_uploadStatusLabel;         // 上传状态标签
+	bool m_isUploading;                  // 是否正在上传
+	
 	// 右键菜单
 	CMenu m_contextMenu;
 	int m_contextMenuRow;
@@ -173,6 +178,9 @@ private:
 	
 	// 专业类型相关方法
 	void InitializeSpecialtyCombo(CComboBox* pCombo);
+	
+	// 进度条相关方法
+	void CreateProgressControls();       // 创建进度条控件
 	
 	// 常量定义（调整按钮高度和最小窗口尺寸）
 	static const int MIN_WIDTH = 700;   // 增加最小宽度
