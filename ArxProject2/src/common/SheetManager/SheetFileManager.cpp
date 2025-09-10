@@ -752,14 +752,23 @@ SheetStatusManager::SheetStatusManager()
 
 void SheetStatusManager::setStatus(const std::wstring& fileName, Status status)
 {
-    std::lock_guard<std::mutex> lock(m_statusMutex);
-    
-    Status oldStatus = getStatus(fileName);
-    m_statusMap[fileName] = status;
-    
-    if (m_statusChangedCallback && oldStatus != status) {
-        m_statusChangedCallback(fileName, oldStatus, status);
-    }
+	std::lock_guard<std::mutex> lock(m_statusMutex);
+
+	// 直接在锁内查找，避免重复加锁
+	Status oldStatus = PendingUpload;
+	auto it = m_statusMap.find(fileName);
+	if (it != m_statusMap.end()) {
+		oldStatus = it->second;
+	}
+
+	// 只有状态真的改变时才更新和触发回调
+	if (oldStatus != status) {
+		m_statusMap[fileName] = status;
+
+		if (m_statusChangedCallback) {
+			m_statusChangedCallback(fileName, oldStatus, status);
+		}
+	}
 }
 
 SheetStatusManager::Status SheetStatusManager::getStatus(const std::wstring& fileName) const

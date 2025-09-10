@@ -37,7 +37,23 @@
 
 // 前向声明
 struct SheetData;
-class SheetFileManager;
+
+
+#define WM_UPLOAD_PROGRESS (WM_USER + 1001)
+#define WM_UPLOAD_COMPLETED (WM_USER + 1002)
+
+// 添加结构体用于传递数据
+struct UploadProgressData {
+	std::wstring fileName;
+	__int64 bytesSent;
+	__int64 bytesTotal;
+};
+
+struct UploadCompletedData {
+	std::wstring fileName;
+	bool success;
+};
+
 
 //-----------------------------------------------------------------------------
 class SheetListWindow : public CAdUiBaseDialog {
@@ -191,6 +207,17 @@ private:
 		SPECIALTY_INTELLIGENT = 8    // 建筑智能化(含消防)
 	};
 	
+	// 上传回调方法
+	void OnUploadProgress(const std::wstring& fileName, __int64 bytesSent, __int64 bytesTotal);
+	void OnUploadCompleted(const std::wstring& fileName, bool success);
+	void OnFileStatusChanged(const std::wstring& fileName, SheetStatusManager::Status oldStatus, SheetStatusManager::Status newStatus);
+	
+	// 辅助方法
+	void UpdateSheetStatus(const std::wstring& serverFileName, const CString& newStatus);
+	void UpdateTextIndexForUploadedFile(const std::wstring& serverFileName);
 
-
+	// 在 SheetListWindow.h 中添加
+protected:
+	afx_msg LRESULT OnUploadProgressMessage(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnUploadCompletedMessage(WPARAM wParam, LPARAM lParam);
 };
