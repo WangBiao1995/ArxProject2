@@ -113,7 +113,7 @@ bool SheetFileManager::downloadFile(const std::wstring& serverFileName, const st
     std::wstring targetPath = localPath.empty() ? getLocalCachePath(serverFileName) : localPath;
     
     if (!m_hConnect) {
-        CadLogger::LogError(_T("WinHTTP连接未初始化"));
+        acutPrintf(_T("WinHTTP连接未初始化"));
         return false;
     }
     
@@ -127,20 +127,20 @@ bool SheetFileManager::downloadFile(const std::wstring& serverFileName, const st
                                            0);
     
     if (!hRequest) {
-        CadLogger::LogError(_T("创建下载请求失败"));
+        acutPrintf(_T("创建下载请求失败"));
         return false;
     }
     
     BOOL result = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
     if (!result) {
-        CadLogger::LogError(_T("发送下载请求失败"));
+        acutPrintf(_T("发送下载请求失败"));
         WinHttpCloseHandle(hRequest);
         return false;
     }
     
     result = WinHttpReceiveResponse(hRequest, nullptr);
     if (!result) {
-        CadLogger::LogError(_T("接收下载响应失败"));
+        acutPrintf(_T("接收下载响应失败"));
         WinHttpCloseHandle(hRequest);
         return false;
     }
@@ -152,7 +152,7 @@ bool SheetFileManager::downloadFile(const std::wstring& serverFileName, const st
                        WINHTTP_HEADER_NAME_BY_INDEX, &statusCode, &statusCodeSize, WINHTTP_NO_HEADER_INDEX);
     
     if (statusCode != 200) {
-        CadLogger::LogError(_T("下载失败，HTTP状态码: %d"), statusCode);
+        acutPrintf(_T("下载失败，HTTP状态码: %d"), statusCode);
         WinHttpCloseHandle(hRequest);
         return false;
     }
@@ -160,7 +160,7 @@ bool SheetFileManager::downloadFile(const std::wstring& serverFileName, const st
     // 读取文件内容并保存
     std::ofstream file(targetPath, std::ios::binary);
     if (!file.is_open()) {
-        CadLogger::LogError(_T("无法创建本地文件: %s"), targetPath.c_str());
+        acutPrintf(_T("无法创建本地文件: %s"), targetPath.c_str());
         WinHttpCloseHandle(hRequest);
         return false;
     }
@@ -204,7 +204,7 @@ bool SheetFileManager::downloadFile(const std::wstring& serverFileName, const st
         m_downloadCompletedCallback(serverFileName, true);
     }
     
-    CadLogger::LogInfo(_T("文件下载成功: %s"), serverFileName.c_str());
+   acutPrintf(_T("文件下载成功: %s"), serverFileName.c_str());
     return true;
 }
 
@@ -257,7 +257,7 @@ void SheetFileManager::processNextUploadTask()
 void SheetFileManager::performUpload(const UploadTask& task)
 {
     if (!m_hConnect) {
-        CadLogger::LogError(_T("WinHTTP连接未初始化"));
+        acutPrintf(_T("WinHTTP连接未初始化"));
         m_currentUploads--;
         if (m_uploadCompletedCallback) {
             m_uploadCompletedCallback(task.serverFileName, false);
@@ -267,7 +267,7 @@ void SheetFileManager::performUpload(const UploadTask& task)
     
     // 检查文件是否存在
     if (!PathFileExists(task.localFilePath.c_str())) {
-        CadLogger::LogError(_T("上传文件不存在: %s"), task.localFilePath.c_str());
+        acutPrintf(_T("上传文件不存在: %s"), task.localFilePath.c_str());
         m_currentUploads--;
         if (m_uploadCompletedCallback) {
             m_uploadCompletedCallback(task.serverFileName, false);
@@ -284,7 +284,7 @@ void SheetFileManager::performUpload(const UploadTask& task)
                                            0);
     
     if (!hRequest) {
-        CadLogger::LogError(_T("创建上传请求失败"));
+        acutPrintf(_T("创建上传请求失败"));
         m_currentUploads--;
         if (m_uploadCompletedCallback) {
             m_uploadCompletedCallback(task.serverFileName, false);
@@ -299,7 +299,7 @@ void SheetFileManager::performUpload(const UploadTask& task)
     // 读取文件内容
     std::ifstream file(task.localFilePath, std::ios::binary);
     if (!file.is_open()) {
-        CadLogger::LogError(_T("无法打开上传文件: %s"), task.localFilePath.c_str());
+        acutPrintf(_T("无法打开上传文件: %s"), task.localFilePath.c_str());
         WinHttpCloseHandle(hRequest);
         m_currentUploads--;
         if (m_uploadCompletedCallback) {
@@ -346,7 +346,7 @@ void SheetFileManager::performUpload(const UploadTask& task)
                                     0);
     
     if (!result) {
-        CadLogger::LogError(_T("发送上传请求失败"));
+        acutPrintf(_T("发送上传请求失败"));
         file.close();
         WinHttpCloseHandle(hRequest);
         m_currentUploads--;
@@ -370,7 +370,7 @@ void SheetFileManager::performUpload(const UploadTask& task)
         
         if (bytesRead > 0) {
             if (!WinHttpWriteData(hRequest, buffer, (DWORD)bytesRead, &bytesWritten)) {
-                CadLogger::LogError(_T("写入文件数据失败"));
+                acutPrintf(_T("写入文件数据失败"));
                 break;
             }
             
@@ -391,7 +391,7 @@ void SheetFileManager::performUpload(const UploadTask& task)
     // 接收响应
     result = WinHttpReceiveResponse(hRequest, nullptr);
     if (!result) {
-        CadLogger::LogError(_T("接收上传响应失败"));
+        acutPrintf(_T("接收上传响应失败"));
         WinHttpCloseHandle(hRequest);
         m_currentUploads--;
         if (m_uploadCompletedCallback) {
@@ -412,10 +412,10 @@ void SheetFileManager::performUpload(const UploadTask& task)
     m_currentUploads--;
     
     if (success) {
-        CadLogger::LogInfo(_T("文件上传成功: %s"), task.serverFileName.c_str());
+       acutPrintf(_T("文件上传成功: %s"), task.serverFileName.c_str());
         updateTextIndexForUploadedFile(task);
     } else {
-        CadLogger::LogError(_T("文件上传失败: %s, HTTP状态码: %d"), task.serverFileName.c_str(), statusCode);
+        acutPrintf(_T("文件上传失败: %s, HTTP状态码: %d"), task.serverFileName.c_str(), statusCode);
     }
     
     if (m_uploadCompletedCallback) {
@@ -716,7 +716,7 @@ void SheetFileManager::saveCacheIndex()
 
 void SheetFileManager::handleNetworkError(DWORD error, const std::wstring& operation)
 {
-    CadLogger::LogError(_T("网络操作失败: %s, 错误代码: %d"), operation.c_str(), error);
+    acutPrintf(_T("网络操作失败: %s, 错误代码: %d"), operation.c_str(), error);
 }
 
 void SheetFileManager::scheduleRetry(const UploadTask& task)
@@ -740,7 +740,7 @@ void SheetFileManager::updateTextIndexForUploadedFile(const UploadTask& task)
     // 为上传的文件更新文本索引
     std::wstring errorMsg;
     if (!SearchTextInDwg::buildTextIndexForDrawing(task.localFilePath, errorMsg)) {
-        CadLogger::LogWarning(_T("为上传文件建立文本索引失败: %s"), errorMsg.c_str());
+       acutPrintf(_T("为上传文件建立文本索引失败: %s"), errorMsg.c_str());
     }
 }
 

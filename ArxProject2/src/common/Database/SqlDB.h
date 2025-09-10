@@ -53,8 +53,12 @@ public:
     
     // 通用数据库操作
     static bool executeQuery(const std::wstring& sql, std::wstring& errorMsg);
+    static std::wstring getStatementError(SQLHSTMT hStmt);
     static bool executeQuery(const std::wstring& sql);
-
+    
+    // 新增：执行非查询语句（INSERT、UPDATE、DELETE）
+    static bool executeNonQuery(const std::wstring& sql, std::wstring& errorMsg);
+    
     // 添加查询结果返回方法
     static bool executeSelectQuery(const std::wstring& sql, std::vector<std::vector<std::wstring>>& results, std::wstring& errorMsg);
     
@@ -76,4 +80,6 @@ private:
     static bool insertProjectData();
     static bool insertDrawingData();
     static std::wstring getLastError();
+    
+    
 };

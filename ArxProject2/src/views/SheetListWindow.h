@@ -142,6 +142,8 @@ private:
 	void LoadDataFromDatabase();
 	void SaveDataToDatabase();
 	bool CreateSheetTable();
+	void AddSampleData();  // 新增：添加示例数据方法
+	bool InsertSheetData(const SheetData& data);  // 修改参数类型
 	
 	// 筛选相关方法
 	std::vector<std::shared_ptr<SheetData>> FilterSheetData(

@@ -68,7 +68,7 @@ bool DialogCommand::showLoginDialog()
         if (!m_loginDialog) {
             m_loginDialog = new ManagerSystemLogin();
             if (!m_loginDialog) {
-                CadLogger::LogError(_T("创建登录对话框失败!"));
+               
                 return false;
             }
         }
@@ -101,11 +101,11 @@ bool DialogCommand::showLoginDialog()
         // 显示登录对话框（模态）
         INT_PTR result = m_loginDialog->DoModal();
         
-        CadLogger::LogInfo(_T("登录对话框已显示!"));
+        
         return (result == IDOK);
         
     } catch (...) {
-        CadLogger::LogError(_T("显示登录对话框时发生异常!"));
+       
         return false;
     }
 }
@@ -122,7 +122,7 @@ bool DialogCommand::showMainDialog()
             CTestDialog::s_pModelessDialog->ShowWindow(SW_SHOW);
             CTestDialog::s_pModelessDialog->SetForegroundWindow();
             // 暂时移除中文日志，避免编码问题
-            // CadLogger::LogInfo(_T("图纸管理界面已经打开，将其置于前台"));
+            //acutPrintf(_T("图纸管理界面已经打开，将其置于前台"));
             acutPrintf(_T("\nSheet Manager dialog is already open, bringing to front\n"));
             return true;
         }
@@ -183,19 +183,19 @@ bool DialogCommand::showMainDialog()
             
             pDlg->ShowWindow(SW_SHOW);
             // 暂时使用英文日志，避免编码问题
-            // CadLogger::LogInfo(_T("图纸管理界面已创建并显示在CAD窗口右侧"));
+            //acutPrintf(_T("图纸管理界面已创建并显示在CAD窗口右侧"));
             acutPrintf(_T("\nSheet Manager dialog created and positioned on right side of CAD window\n"));
             return true;
         } else {
             delete pDlg;
-            // CadLogger::LogError(_T("创建图纸管理界面失败"));
+            // acutPrintf(_T("创建图纸管理界面失败"));
             acutPrintf(_T("\nFailed to create Sheet Manager dialog\n"));
             return false;
         }
 
     }
     catch (...) {
-        // CadLogger::LogError(_T("显示主对话框时发生异常!"));
+        // acutPrintf(_T("显示主对话框时发生异常!"));
         acutPrintf(_T("\nException occurred while showing main dialog\n"));
         return false;
     }
@@ -212,8 +212,7 @@ void DialogCommand::setupLoginConnections(ManagerSystemLogin* loginDialog)
 
 void DialogCommand::onLoginSuccess()
 {
-    CadLogger::LogInfo(_T("登录成功，正在显示主界面..."));
-    
+   
     // 隐藏登录对话框
     if (m_loginDialog && m_loginDialog->GetSafeHwnd()) {
         m_loginDialog->ShowWindow(SW_HIDE);
@@ -221,16 +220,15 @@ void DialogCommand::onLoginSuccess()
     
     // 显示主对话框
     if (showMainDialog()) {
-        CadLogger::LogInfo(_T("主界面显示成功!"));
+        
     } else {
-        CadLogger::LogError(_T("主界面显示失败!"));
+      
     }
 }
 
 void DialogCommand::onLoginCancelled()
 {
-    CadLogger::LogInfo(_T("登录已取消!"));
-    
+   
     // 清理登录对话框
     if (m_loginDialog) {
         delete m_loginDialog;
@@ -253,14 +251,14 @@ void DialogCommand::executeCommand()
         // 创建DialogCommand实例并保持引用
         g_dialogCommandInstance = new DialogCommand();
         if (!g_dialogCommandInstance) {
-            CadLogger::LogError(_T("创建DialogCommand失败!"));
+           
             return;
         }
         
         // 测试数据库连接
         if (SqlDB::testDatabaseConnection()) {
             acutPrintf(_T("\nDatabase connection is normal!\n"));
-            // CadLogger::LogInfo(_T("数据库连接正常!"));
+            //acutPrintf(_T("数据库连接正常!"));
         } else {
             acutPrintf(_T("\nDatabase connection failed, but plugin can still work normally!\n"));
             // CadLogger::LogWarning(_T("数据库连接失败，但插件仍可正常使用!"));
@@ -269,7 +267,7 @@ void DialogCommand::executeCommand()
         g_dialogCommandInstance->showMainDialog();
         
     } catch (...) {
-        CadLogger::LogError(_T("执行命令时发生异常!"));
+        acutPrintf(_T("执行命令时发生异常!"));
     }
 } 
 
@@ -277,41 +275,41 @@ void DialogCommand::executeCommand()
 void DialogCommand::executeTestDataCommand()
 {
     try {
-        CadLogger::LogInfo(_T("=== 开始执行测试数据操作 ==="));
+       acutPrintf(_T("=== 开始执行测试数据操作 ==="));
         
         // 测试数据库连接
         if (!SqlDB::testDatabaseConnection()) {
-            CadLogger::LogError(_T("数据库连接失败，无法执行测试数据操作!"));
+            acutPrintf(_T("数据库连接失败，无法执行测试数据操作!"));
             return;
         }
         
         // 创建测试表
         if (SqlDB::createTestTables()) {
-            CadLogger::LogInfo(_T("测试表创建成功!"));
+           acutPrintf(_T("测试表创建成功!"));
         } else {
-            CadLogger::LogError(_T("测试表创建失败!"));
+            acutPrintf(_T("测试表创建失败!"));
             return;
         }
         
         // 插入测试数据
         if (SqlDB::insertTestData()) {
-            CadLogger::LogInfo(_T("测试数据插入成功!"));
+           acutPrintf(_T("测试数据插入成功!"));
         } else {
-            CadLogger::LogError(_T("测试数据插入失败!"));
+            acutPrintf(_T("测试数据插入失败!"));
             return;
         }
         
         // 显示测试数据
         if (SqlDB::showTestData()) {
-            CadLogger::LogInfo(_T("测试数据查询成功!"));
+           acutPrintf(_T("测试数据查询成功!"));
         } else {
-            CadLogger::LogError(_T("测试数据查询失败!"));
+            acutPrintf(_T("测试数据查询失败!"));
         }
         
-        CadLogger::LogInfo(_T("=== 测试数据操作完成 ==="));
+       acutPrintf(_T("=== 测试数据操作完成 ==="));
         
     } catch (...) {
-        CadLogger::LogError(_T("执行测试数据命令时发生异常!"));
+        acutPrintf(_T("执行测试数据命令时发生异常!"));
     }
 }
 
@@ -319,25 +317,25 @@ void DialogCommand::executeTestDataCommand()
 void DialogCommand::executeQueryDataCommand()
 {
     try {
-        CadLogger::LogInfo(_T("=== 开始查询测试数据 ==="));
+       acutPrintf(_T("=== 开始查询测试数据 ==="));
         
         // 测试数据库连接
         if (!SqlDB::testDatabaseConnection()) {
-            CadLogger::LogError(_T("数据库连接失败，无法查询测试数据!"));
+            acutPrintf(_T("数据库连接失败，无法查询测试数据!"));
             return;
         }
         
         // 查询测试数据
         if (SqlDB::queryTestData()) {
-            CadLogger::LogInfo(_T("测试数据查询成功!"));
+           acutPrintf(_T("测试数据查询成功!"));
         } else {
-            CadLogger::LogError(_T("测试数据查询失败!"));
+            acutPrintf(_T("测试数据查询失败!"));
         }
         
-        CadLogger::LogInfo(_T("=== 查询操作完成 ==="));
+       acutPrintf(_T("=== 查询操作完成 ==="));
         
     } catch (...) {
-        CadLogger::LogError(_T("执行查询数据命令时发生异常!"));
+        acutPrintf(_T("执行查询数据命令时发生异常!"));
     }
 }
 
@@ -345,7 +343,7 @@ void DialogCommand::executeQueryDataCommand()
 void DialogCommand::executeFileUploadTestCommand()
 {
     try {
-        CadLogger::LogInfo(_T("=== 开始测试文件上传到SheetManagerServer ==="));
+       acutPrintf(_T("=== 开始测试文件上传到SheetManagerServer ==="));
         
         // 测试文件路径
         CString testFilePath = _T("D:\\Documents\\Drawing1.dwg");
@@ -353,8 +351,8 @@ void DialogCommand::executeFileUploadTestCommand()
         // 检查文件是否存在
         DWORD fileAttributes = GetFileAttributes(testFilePath);
         if (fileAttributes == INVALID_FILE_ATTRIBUTES) {
-            CadLogger::LogError(_T("测试文件不存在: %s"), testFilePath);
-            CadLogger::LogError(_T("请确保文件路径正确且文件存在!"));
+            acutPrintf(_T("测试文件不存在: %s"), testFilePath);
+            acutPrintf(_T("请确保文件路径正确且文件存在!"));
             return;
         }
         
@@ -365,9 +363,9 @@ void DialogCommand::executeFileUploadTestCommand()
             fileSize.LowPart = fileInfo.nFileSizeLow;
             fileSize.HighPart = fileInfo.nFileSizeHigh;
             
-            CadLogger::LogInfo(_T("测试文件信息:"));
-            CadLogger::LogInfo(_T("  文件路径: %s"), testFilePath);
-            CadLogger::LogInfo(_T("  文件大小: %lld 字节"), fileSize.QuadPart);
+           acutPrintf(_T("测试文件信息:"));
+           acutPrintf(_T("  文件路径: %s"), testFilePath);
+           acutPrintf(_T("  文件大小: %lld 字节"), fileSize.QuadPart);
         }
         
         // 使用WinHTTP进行文件上传
@@ -378,7 +376,7 @@ void DialogCommand::executeFileUploadTestCommand()
                                         0);
         
         if (!hSession) {
-            CadLogger::LogError(_T("创建HTTP会话失败!"));
+            acutPrintf(_T("创建HTTP会话失败!"));
             return;
         }
         
@@ -388,7 +386,7 @@ void DialogCommand::executeFileUploadTestCommand()
                                            0);
         
         if (!hConnect) {
-            CadLogger::LogError(_T("连接到服务器失败!"));
+            acutPrintf(_T("连接到服务器失败!"));
             WinHttpCloseHandle(hSession);
             return;
         }
@@ -402,7 +400,7 @@ void DialogCommand::executeFileUploadTestCommand()
                                                0);
         
         if (!hRequest) {
-            CadLogger::LogError(_T("创建HTTP请求失败!"));
+            acutPrintf(_T("创建HTTP请求失败!"));
             WinHttpCloseHandle(hConnect);
             WinHttpCloseHandle(hSession);
             return;
@@ -415,7 +413,7 @@ void DialogCommand::executeFileUploadTestCommand()
         // 这里需要实现multipart/form-data的构建和发送
         // 由于篇幅限制，这里只展示框架
         
-        CadLogger::LogInfo(_T("文件上传请求已发送，等待服务器响应..."));
+       acutPrintf(_T("文件上传请求已发送，等待服务器响应..."));
         
         // 清理资源
         WinHttpCloseHandle(hRequest);
@@ -423,7 +421,7 @@ void DialogCommand::executeFileUploadTestCommand()
         WinHttpCloseHandle(hSession);
         
     } catch (...) {
-        CadLogger::LogError(_T("执行文件上传测试时发生异常!"));
+        acutPrintf(_T("执行文件上传测试时发生异常!"));
     }
 } 
 
@@ -431,7 +429,7 @@ void DialogCommand::executeFileUploadTestCommand()
 void DialogCommand::executeShowLoginDialogCommand()
 {
     try {
-        CadLogger::LogInfo(_T("=== 开始测试显示登录对话框 ==="));
+       acutPrintf(_T("=== 开始测试显示登录对话框 ==="));
         
         // 如果已经有实例在运行，先清理
         if (g_dialogCommandInstance) {
@@ -442,21 +440,21 @@ void DialogCommand::executeShowLoginDialogCommand()
         // 创建DialogCommand实例并保持引用
         g_dialogCommandInstance = new DialogCommand();
         if (!g_dialogCommandInstance) {
-            CadLogger::LogError(_T("创建DialogCommand失败!"));
+            acutPrintf(_T("创建DialogCommand失败!"));
             return;
         }
         
         // 显示登录对话框
         if (g_dialogCommandInstance->showLoginDialog()) {
-            CadLogger::LogInfo(_T("登录对话框显示成功!"));
+           acutPrintf(_T("登录对话框显示成功!"));
         } else {
-            CadLogger::LogError(_T("登录对话框显示失败!"));
+            acutPrintf(_T("登录对话框显示失败!"));
         }
         
-        CadLogger::LogInfo(_T("=== 登录对话框测试完成 ==="));
+       acutPrintf(_T("=== 登录对话框测试完成 ==="));
         
     } catch (...) {
-        CadLogger::LogError(_T("执行显示登录对话框测试时发生异常!"));
+        acutPrintf(_T("执行显示登录对话框测试时发生异常!"));
     }
 } 
 

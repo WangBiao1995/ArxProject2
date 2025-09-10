@@ -28,7 +28,7 @@ bool SqlDB::initDatabase()
         SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &m_hEnv);
         if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
             acutPrintf(_T("\nERROR: Failed to allocate environment handle\n"));
-            CadLogger::LogError(_T("Failed to allocate environment handle"));
+            acutPrintf(_T("Failed to allocate environment handle"));
             return false;
         }
         acutPrintf(_T("\nStep 1: SUCCESS\n"));
@@ -38,7 +38,7 @@ bool SqlDB::initDatabase()
         ret = SQLSetEnvAttr(m_hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
         if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
             acutPrintf(_T("\nERROR: Failed to set ODBC version\n"));
-            CadLogger::LogError(_T("Failed to set ODBC version"));
+            acutPrintf(_T("Failed to set ODBC version"));
             SQLFreeHandle(SQL_HANDLE_ENV, m_hEnv);
             m_hEnv = SQL_NULL_HENV;
             return false;
@@ -50,7 +50,7 @@ bool SqlDB::initDatabase()
         ret = SQLAllocHandle(SQL_HANDLE_DBC, m_hEnv, &m_hDbc);
         if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
             acutPrintf(_T("\nERROR: Failed to allocate connection handle\n"));
-            CadLogger::LogError(_T("Failed to allocate connection handle"));
+            acutPrintf(_T("Failed to allocate connection handle"));
             SQLFreeHandle(SQL_HANDLE_ENV, m_hEnv);
             m_hEnv = SQL_NULL_HENV;
             return false;
@@ -72,7 +72,7 @@ bool SqlDB::initDatabase()
             acutPrintf(_T("\nERROR: Database connection failed\n"));
             acutPrintf(_T("Error details: %s\n"), error.c_str());
             // 临时注释掉 CadLogger，直接使用 acutPrintf
-            // CadLogger::LogError(_T("Database connection failed: %s"), error.c_str());
+            // acutPrintf(_T("Database connection failed: %s"), error.c_str());
             
             SQLFreeHandle(SQL_HANDLE_DBC, m_hDbc);
             SQLFreeHandle(SQL_HANDLE_ENV, m_hEnv);
@@ -84,11 +84,11 @@ bool SqlDB::initDatabase()
         
         // 直接使用 acutPrintf 而不是 CadLogger
         acutPrintf(_T("\nPostgreSQL database connected successfully!\n"));
-        // CadLogger::LogInfo(_T("PostgreSQL database connected successfully!"));
+        //acutPrintf(_T("PostgreSQL database connected successfully!"));
         return true;
         
     } catch (...) {
-        CadLogger::LogError(_T("数据库初始化时发生异常!"));
+        acutPrintf(_T("数据库初始化时发生异常!"));
         return false;
     }
 }
@@ -98,7 +98,7 @@ bool SqlDB::testDatabaseConnection()
 {
     try {
         if (m_hDbc == SQL_NULL_HDBC) {
-            CadLogger::LogWarning(_T("数据库未连接，尝试重新连接..."));
+           
             return initDatabase();
         }
         
@@ -106,7 +106,7 @@ bool SqlDB::testDatabaseConnection()
         SQLHSTMT hStmt;
         SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, m_hDbc, &hStmt);
         if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
-            CadLogger::LogError(_T("分配语句句柄失败"));
+            acutPrintf(_T("分配语句句柄失败"));
             return false;
         }
         
@@ -121,7 +121,7 @@ bool SqlDB::testDatabaseConnection()
                 if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
                     // 直接使用 acutPrintf 而不是 CadLogger
                     acutPrintf(_T("\nDatabase connection test successful! PostgreSQL version: %s\n"), version);
-                    // CadLogger::LogInfo(_T("数据库连接测试成功! PostgreSQL版本: %s"), version);
+                    //acutPrintf(_T("数据库连接测试成功! PostgreSQL版本: %s"), version);
                 }
             }
             
@@ -129,14 +129,14 @@ bool SqlDB::testDatabaseConnection()
             return true;
         } else {
             std::wstring error = getLastError();
-            CadLogger::LogError(_T("数据库查询测试失败: %s"), error.c_str());
+            acutPrintf(_T("数据库查询测试失败: %s"), error.c_str());
             SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
         }
         
         return false;
         
     } catch (...) {
-        CadLogger::LogError(_T("数据库连接测试时发生异常!"));
+        acutPrintf(_T("数据库连接测试时发生异常!"));
         return false;
     }
 }
@@ -148,7 +148,7 @@ void SqlDB::closeDatabase()
         SQLDisconnect(m_hDbc);
         SQLFreeHandle(SQL_HANDLE_DBC, m_hDbc);
         m_hDbc = SQL_NULL_HDBC;
-        CadLogger::LogInfo(_T("数据库连接已关闭!"));
+       acutPrintf(_T("数据库连接已关闭!"));
     }
     
     if (m_hEnv != SQL_NULL_HENV) {
@@ -167,8 +167,11 @@ bool SqlDB::isDatabaseOpen()
 bool SqlDB::executeQuery(const std::wstring& sql, std::wstring& errorMsg)
 {
     try {
+        acutPrintf(_T("准备执行SQL: %s"), sql.c_str());
+        
         if (m_hDbc == SQL_NULL_HDBC) {
             errorMsg = L"数据库未连接";
+            acutPrintf(_T("错误: 数据库未连接"));
             return false;
         }
         
@@ -176,23 +179,52 @@ bool SqlDB::executeQuery(const std::wstring& sql, std::wstring& errorMsg)
         SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, m_hDbc, &hStmt);
         if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
             errorMsg = L"分配语句句柄失败";
+            acutPrintf(_T("错误: 分配语句句柄失败"));
             return false;
         }
         
+        acutPrintf(_T("开始执行SQL语句"));
         ret = SQLExecDirect(hStmt, (SQLWCHAR*)sql.c_str(), SQL_NTS);
-        if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
+        acutPrintf(_T("SQL执行返回码: %d"), ret);
+        
+        // 修改判断条件：SQL_NO_DATA (100) 对于DELETE/UPDATE/INSERT是正常的
+        if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO || ret == SQL_NO_DATA) {
+            acutPrintf(_T("SQL执行成功"));
             SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
             return true;
         } else {
-            errorMsg = getLastError();
+            acutPrintf(_T("SQL执行失败，返回码: %d"), ret);
+            // 获取语句级别的错误信息
+            errorMsg = getStatementError(hStmt);
+            acutPrintf(_T("错误信息: %s"), errorMsg.c_str());
             SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
             return false;
         }
         
     } catch (...) {
         errorMsg = L"执行查询时发生异常";
+        acutPrintf(_T("执行查询时发生异常"));
         return false;
     }
+}
+
+// 新增方法：获取语句级别的错误信息
+std::wstring SqlDB::getStatementError(SQLHSTMT hStmt)
+{
+    SQLWCHAR sqlState[6], messageText[512];
+    SQLINTEGER nativeError;
+    SQLSMALLINT textLength;
+    
+    if (hStmt != SQL_NULL_HSTMT) {
+        SQLRETURN ret = SQLGetDiagRec(SQL_HANDLE_STMT, hStmt, 1, sqlState, &nativeError, 
+                                     messageText, sizeof(messageText)/sizeof(SQLWCHAR), &textLength);
+        if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
+            return std::wstring(messageText);
+        }
+    }
+    
+    // 如果获取语句错误失败，尝试获取连接错误
+    return getLastError();
 }
 
 // 执行通用查询（简单版本）
@@ -267,28 +299,28 @@ bool SqlDB::executeSelectQuery(const std::wstring& sql, std::vector<std::vector<
 bool SqlDB::createTestTables()
 {
     try {
-        CadLogger::LogInfo(_T("=== 开始创建测试表 ==="));
+       acutPrintf(_T("=== 开始创建测试表 ==="));
         
         if (!createUserTable()) {
-            CadLogger::LogError(_T("创建用户表失败"));
+            acutPrintf(_T("创建用户表失败"));
             return false;
         }
         
         if (!createProjectTable()) {
-            CadLogger::LogError(_T("创建项目表失败"));
+            acutPrintf(_T("创建项目表失败"));
             return false;
         }
         
         if (!createDrawingTable()) {
-            CadLogger::LogError(_T("创建图纸表失败"));
+            acutPrintf(_T("创建图纸表失败"));
             return false;
         }
         
-        CadLogger::LogInfo(_T("=== 测试表创建完成 ==="));
+       acutPrintf(_T("=== 测试表创建完成 ==="));
         return true;
         
     } catch (...) {
-        CadLogger::LogError(_T("创建测试表时发生异常"));
+        acutPrintf(_T("创建测试表时发生异常"));
         return false;
     }
 }
@@ -297,28 +329,28 @@ bool SqlDB::createTestTables()
 bool SqlDB::insertTestData()
 {
     try {
-        CadLogger::LogInfo(_T("=== 开始插入测试数据 ==="));
+       acutPrintf(_T("=== 开始插入测试数据 ==="));
         
         if (!insertUserData()) {
-            CadLogger::LogError(_T("插入用户数据失败"));
+            acutPrintf(_T("插入用户数据失败"));
             return false;
         }
         
         if (!insertProjectData()) {
-            CadLogger::LogError(_T("插入项目数据失败"));
+            acutPrintf(_T("插入项目数据失败"));
             return false;
         }
         
         if (!insertDrawingData()) {
-            CadLogger::LogError(_T("插入图纸数据失败"));
+            acutPrintf(_T("插入图纸数据失败"));
             return false;
         }
         
-        CadLogger::LogInfo(_T("=== 测试数据插入完成 ==="));
+       acutPrintf(_T("=== 测试数据插入完成 ==="));
         return true;
         
     } catch (...) {
-        CadLogger::LogError(_T("插入测试数据时发生异常"));
+        acutPrintf(_T("插入测试数据时发生异常"));
         return false;
     }
 }
@@ -327,27 +359,27 @@ bool SqlDB::insertTestData()
 bool SqlDB::showTestData()
 {
     try {
-        CadLogger::LogInfo(_T("=== 开始显示测试数据 ==="));
+       acutPrintf(_T("=== 开始显示测试数据 ==="));
         
         // 查询用户表
         std::wstring sql = L"SELECT id, name, email FROM test_users ORDER BY id";
         std::wstring errorMsg;
         
         if (m_hDbc == SQL_NULL_HDBC) {
-            CadLogger::LogError(_T("数据库未连接"));
+            acutPrintf(_T("数据库未连接"));
             return false;
         }
         
         SQLHSTMT hStmt;
         SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, m_hDbc, &hStmt);
         if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
-            CadLogger::LogError(_T("分配语句句柄失败"));
+            acutPrintf(_T("分配语句句柄失败"));
             return false;
         }
         
         ret = SQLExecDirect(hStmt, (SQLWCHAR*)sql.c_str(), SQL_NTS);
         if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
-            CadLogger::LogInfo(_T("用户表数据:"));
+           acutPrintf(_T("用户表数据:"));
             
             SQLINTEGER id;
             SQLWCHAR name[100], email[100];
@@ -358,17 +390,17 @@ bool SqlDB::showTestData()
                 SQLGetData(hStmt, 2, SQL_C_WCHAR, name, sizeof(name), &nameLen);
                 SQLGetData(hStmt, 3, SQL_C_WCHAR, email, sizeof(email), &emailLen);
                 
-                CadLogger::LogInfo(_T("  ID: %d, 姓名: %s, 邮箱: %s"), id, name, email);
+               acutPrintf(_T("  ID: %d, 姓名: %s, 邮箱: %s"), id, name, email);
             }
         }
         
         SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
         
-        CadLogger::LogInfo(_T("=== 测试数据显示完成 ==="));
+       acutPrintf(_T("=== 测试数据显示完成 ==="));
         return true;
         
     } catch (...) {
-        CadLogger::LogError(_T("显示测试数据时发生异常"));
+        acutPrintf(_T("显示测试数据时发生异常"));
         return false;
     }
 }
@@ -386,25 +418,25 @@ bool SqlDB::clearTestData()
         std::wstring errorMsg;
         
         if (!executeQuery(L"DROP TABLE IF EXISTS test_drawings", errorMsg)) {
-            CadLogger::LogError(_T("删除图纸表失败: %s"), errorMsg.c_str());
+            acutPrintf(_T("删除图纸表失败: %s"), errorMsg.c_str());
             return false;
         }
         
         if (!executeQuery(L"DROP TABLE IF EXISTS test_projects", errorMsg)) {
-            CadLogger::LogError(_T("删除项目表失败: %s"), errorMsg.c_str());
+            acutPrintf(_T("删除项目表失败: %s"), errorMsg.c_str());
             return false;
         }
         
         if (!executeQuery(L"DROP TABLE IF EXISTS test_users", errorMsg)) {
-            CadLogger::LogError(_T("删除用户表失败: %s"), errorMsg.c_str());
+            acutPrintf(_T("删除用户表失败: %s"), errorMsg.c_str());
             return false;
         }
         
-        CadLogger::LogInfo(_T("测试数据清空完成"));
+       acutPrintf(_T("测试数据清空完成"));
         return true;
         
     } catch (...) {
-        CadLogger::LogError(_T("清空测试数据时发生异常"));
+        acutPrintf(_T("清空测试数据时发生异常"));
         return false;
     }
 }
@@ -414,14 +446,14 @@ bool SqlDB::saveSheetData(const std::vector<DbSheetData>& sheetList, std::wstrin
 {
     try {
         // 先清空现有数据
-        if (!executeQuery(L"DELETE FROM sheet_data", errorMsg)) {
+        if (!executeQuery(L"DELETE FROM sheet_list_data", errorMsg)) {
             return false;
         }
         
         // 插入新数据
         for (const auto& sheet : sheetList) {
             std::wstringstream sql;
-            sql << L"INSERT INTO sheet_data (name, building_name, specialty, format, status, version, design_unit, create_time, creator, is_selected, file_path) VALUES (";
+            sql << L"INSERT INTO sheet_list_data (name, building_name, specialty, format, status, version, design_unit, create_time, creator, is_selected, file_path) VALUES (";
             sql << L"'" << sheet.name << L"', ";
             sql << L"'" << sheet.buildingName << L"', ";
             sql << L"'" << sheet.specialty << L"', ";
@@ -453,7 +485,7 @@ bool SqlDB::loadSheetData(std::vector<DbSheetData>& sheetList, std::wstring& err
     sheetList.clear();
     
     try {
-        std::wstring sql = L"SELECT id, name, building_name, specialty, format, status, version, design_unit, create_time, creator, is_selected, file_path FROM sheet_data ORDER BY id";
+        std::wstring sql = L"SELECT id, name, building_name, specialty, format, status, version, design_unit, create_time, creator, is_selected, file_path FROM sheet_list_data ORDER BY id";
         
         if (m_hDbc == SQL_NULL_HDBC) {
             errorMsg = L"数据库未连接";
@@ -524,6 +556,10 @@ bool SqlDB::clearSheetData(std::wstring& errorMsg)
     return executeQuery(L"DELETE FROM sheet_data", errorMsg);
 }
 
+
+
+
+
 // 创建指定名称和结构的表
 bool SqlDB::createSheetTable(const std::wstring& tableName, const std::wstring& tableStructure)
 {
@@ -564,6 +600,54 @@ std::vector<std::wstring> SqlDB::getTableFields(const std::wstring& tableName)
     // 这里需要查询系统表来获取字段列表
     // 具体实现依赖于数据库类型
     return fields;
+}
+
+// 新增：执行非查询语句（INSERT、UPDATE、DELETE）
+bool SqlDB::executeNonQuery(const std::wstring& sql, std::wstring& errorMsg)
+{
+    try {
+        acutPrintf(_T("准备执行非查询SQL: %s"), sql.c_str());
+        
+        if (m_hDbc == SQL_NULL_HDBC) {
+            errorMsg = L"数据库未连接";
+            acutPrintf(_T("错误: 数据库未连接"));
+            return false;
+        }
+        
+        SQLHSTMT hStmt;
+        SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, m_hDbc, &hStmt);
+        if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
+            errorMsg = L"分配语句句柄失败";
+            acutPrintf(_T("错误: 分配语句句柄失败"));
+            return false;
+        }
+        
+        acutPrintf(_T("开始执行SQL语句"));
+        ret = SQLExecDirect(hStmt, (SQLWCHAR*)sql.c_str(), SQL_NTS);
+        acutPrintf(_T("SQL执行返回码: %d"), ret);
+        
+        // 对于非查询语句，SQL_NO_DATA是正常的返回值
+        if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO || ret == SQL_NO_DATA) {
+            // 获取受影响的行数
+            SQLLEN rowCount = 0;
+            SQLRowCount(hStmt, &rowCount);
+            acutPrintf(_T("SQL执行成功，影响行数: %d"), (int)rowCount);
+            
+            SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+            return true;
+        } else {
+            acutPrintf(_T("SQL执行失败，返回码: %d"), ret);
+            errorMsg = getStatementError(hStmt);
+            acutPrintf(_T("错误信息: %s"), errorMsg.c_str());
+            SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+            return false;
+        }
+        
+    } catch (...) {
+        errorMsg = L"执行非查询语句时发生异常";
+        acutPrintf(_T("执行非查询语句时发生异常"));
+        return false;
+    }
 }
 
 // 私有辅助方法
@@ -625,7 +709,7 @@ bool SqlDB::insertUserData()
     std::wstring errorMsg;
     for (const auto& sql : users) {
         if (!executeQuery(sql, errorMsg)) {
-            CadLogger::LogError(_T("插入用户数据失败: %s"), errorMsg.c_str());
+            acutPrintf(_T("插入用户数据失败: %s"), errorMsg.c_str());
             return false;
         }
     }
@@ -644,7 +728,7 @@ bool SqlDB::insertProjectData()
     std::wstring errorMsg;
     for (const auto& sql : projects) {
         if (!executeQuery(sql, errorMsg)) {
-            CadLogger::LogError(_T("插入项目数据失败: %s"), errorMsg.c_str());
+            acutPrintf(_T("插入项目数据失败: %s"), errorMsg.c_str());
             return false;
         }
     }
@@ -663,7 +747,7 @@ bool SqlDB::insertDrawingData()
     std::wstring errorMsg;
     for (const auto& sql : drawings) {
         if (!executeQuery(sql, errorMsg)) {
-            CadLogger::LogError(_T("插入图纸数据失败: %s"), errorMsg.c_str());
+            acutPrintf(_T("插入图纸数据失败: %s"), errorMsg.c_str());
             return false;
         }
     }
@@ -671,16 +755,19 @@ bool SqlDB::insertDrawingData()
     return true;
 }
 
-// 获取最后的错误信息
+// 改进现有的getLastError方法
 std::wstring SqlDB::getLastError()
 {
-    SQLWCHAR sqlState[6], messageText[256];
+    SQLWCHAR sqlState[6], messageText[512];
     SQLINTEGER nativeError;
     SQLSMALLINT textLength;
     
     if (m_hDbc != SQL_NULL_HDBC) {
-        SQLGetDiagRec(SQL_HANDLE_DBC, m_hDbc, 1, sqlState, &nativeError, messageText, sizeof(messageText)/sizeof(SQLWCHAR), &textLength);
-        return std::wstring(messageText);
+        SQLRETURN ret = SQLGetDiagRec(SQL_HANDLE_DBC, m_hDbc, 1, sqlState, &nativeError, 
+                                     messageText, sizeof(messageText)/sizeof(SQLWCHAR), &textLength);
+        if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
+            return std::wstring(messageText);
+        }
     }
     
     return L"未知错误";
