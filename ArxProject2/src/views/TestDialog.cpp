@@ -326,8 +326,8 @@ void CTestDialog::OnBnClickedDrawingList()
 {
     acutPrintf(_T("\n打开图纸列表窗口\n"));
     
-    // 创建并显示图纸列表窗口
-    SheetListWindow* pSheetWindow = new SheetListWindow(this);
+    // 使用单例模式获取图纸列表窗口实例
+    SheetListWindow* pSheetWindow = SheetListWindow::getInstance(this);
     pSheetWindow->DoModal();
 		/* pSheetWindow->Create(IDD_SheetListWindow, this);
 		 pSheetWindow->ShowWindow(SW_SHOW);*/

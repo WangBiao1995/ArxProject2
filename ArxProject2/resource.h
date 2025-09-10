@@ -38,14 +38,31 @@
 #define IDC_RESET_FILTER_BUTTON         1027
 #define IDC_SAVE_BUTTON                 1028
 #define IDC_BUILDING_TABLE              1029
+#define IDC_SHEET_TITLE_LABEL           1030
+#define IDC_SHEET_SEARCH_GROUP          1031
+#define IDC_SHEET_BUILDING_NAME_LABEL   1032
+#define IDC_SHEET_BUILDING_NAME_EDIT    1033
+#define IDC_SHEET_SPECIALTY_LABEL       1034
+#define IDC_SHEET_SPECIALTY_EDIT        1035
+#define IDC_SHEET_DESIGN_UNIT_LABEL     1036
+#define IDC_SHEET_DESIGN_UNIT_EDIT      1037
+#define IDC_SHEET_CREATE_TIME_LABEL     1038
+#define IDC_SHEET_CREATE_TIME_PICKER    1039
+#define IDC_SHEET_FILTER_BUTTON         1040
+#define IDC_SHEET_RESET_FILTER_BUTTON   1041
+#define IDC_SHEET_UPLOAD_BUTTON         1042
+#define IDC_SHEET_TABLE                 1043
+#define ID_CONTEXT_INSERT_ROW           32769
+#define ID_CONTEXT_DELETE_ROW           32770
+#define ID_CONTEXT_SELECT_FILE          32771
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        110
-#define _APS_NEXT_COMMAND_VALUE         32768
-#define _APS_NEXT_CONTROL_VALUE         1030
+#define _APS_NEXT_COMMAND_VALUE         32772
+#define _APS_NEXT_CONTROL_VALUE         1044
 #define _APS_NEXT_SYMED_VALUE           106
 #endif
 #endif

@@ -1,4 +1,4 @@
-// (C) Copyright 2002-2007 by Autodesk, Inc. 
+﻿// (C) Copyright 2002-2007 by Autodesk, Inc. 
 //
 // Permission to use, copy, modify, and distribute this software in
 // object code form for any purpose and without fee is hereby granted, 
@@ -26,19 +26,172 @@
 
 //-----------------------------------------------------------------------------
 #include "../../resource.h"
+
 #include "adui.h"
+#include <afxcmn.h>
+#include <afxdtctl.h>
+#include <vector>
+#include <memory>
+#include <string>
+#include "src/common/SheetManager/SheetFileManager.h"
+
+// 前向声明
+struct SheetData;
+class SheetFileManager;
+
 //-----------------------------------------------------------------------------
 class SheetListWindow : public CAdUiBaseDialog {
-	DECLARE_DYNAMIC (SheetListWindow)
+	DECLARE_DYNAMIC(SheetListWindow)
 
 public:
-	SheetListWindow (CWnd *pParent =NULL, HINSTANCE hInstance =NULL) ;
+	// 单例模式实现
+	static SheetListWindow* getInstance(CWnd* pParent = nullptr, HINSTANCE hInstance = nullptr);
+	static void destroyInstance();
+	
+	// 禁用拷贝构造函数和赋值操作符
+	SheetListWindow(const SheetListWindow&) = delete;
+	SheetListWindow& operator=(const SheetListWindow&) = delete;
 
-	enum { IDD = IDD_SheetListWindow} ;
+	enum { IDD = IDD_SheetListWindow };
 
 protected:
-	virtual void DoDataExchange (CDataExchange *pDX) ;
-	afx_msg LRESULT OnAcadKeepFocus (WPARAM, LPARAM) ;
+	virtual void DoDataExchange(CDataExchange* pDX);
+	virtual BOOL OnInitDialog();
+	virtual void OnOK();
+	virtual void OnCancel();
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
+	
+	afx_msg LRESULT OnAcadKeepFocus(WPARAM, LPARAM);
+	afx_msg void OnBnClickedSheetFilterButton();
+	afx_msg void OnBnClickedSheetResetFilterButton();
+	afx_msg void OnBnClickedSheetUploadButton();
+	afx_msg void OnSize(UINT nType, int cx, int cy);
+	afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
+	afx_msg void OnNMRClickSheetTable(NMHDR* pNMHDR, LRESULT* pResult);
+	afx_msg void OnContextMenuInsertRow();
+	afx_msg void OnContextMenuDeleteRow();
+	afx_msg void OnContextMenuSelectFile();
+	afx_msg void OnLvnItemchangedSheetTable(NMHDR* pNMHDR, LRESULT* pResult);
+	afx_msg void OnNMDblclkSheetTable(NMHDR* pNMHDR, LRESULT* pResult);
+	afx_msg void OnLvnEndlabeleditSheetTable(NMHDR* pNMHDR, LRESULT* pResult);
+	afx_msg void OnLvnKeydownSheetTable(NMHDR* pNMHDR, LRESULT* pResult);
+	afx_msg void OnEnChangeSheetBuildingNameEdit();
+	afx_msg void OnBnClickedSheetSearchGroup();
 
 	DECLARE_MESSAGE_MAP()
-} ;
+
+private:
+	// 私有构造函数和析构函数
+	SheetListWindow(CWnd* pParent = nullptr, HINSTANCE hInstance = nullptr);
+	virtual ~SheetListWindow();
+	
+	// 单例实例
+	static SheetListWindow* m_pInstance;
+	
+	// 控件变量
+	CEdit m_buildingNameEdit;
+	CEdit m_specialtyEdit;
+	CEdit m_designUnitEdit;
+	CDateTimeCtrl m_createTimePicker;
+	CButton m_filterButton;
+	CButton m_resetFilterButton;
+	CButton m_uploadButton;
+	CListCtrl m_sheetTable;
+	
+	// 右键菜单
+	CMenu m_contextMenu;
+	int m_contextMenuRow;
+	
+	// 编辑控件相关（参照BuildBuildingTableWindow）
+	CEdit* m_pEditCtrl;
+	int m_nEditItem;
+	int m_nEditSubItem;
+	
+	// 数据成员
+	std::vector<std::shared_ptr<SheetData>> m_sheetDataList;
+	std::vector<std::shared_ptr<SheetData>> m_originalDataList; // 用于筛选恢复
+	
+	// 文件管理器（后续实现业务逻辑时使用）
+	SheetFileManager* m_fileManager;
+	SheetStatusManager* m_statusManager;
+	
+	// 界面相关方法
+	void InitializeControls();
+	void SetupSheetTable();
+	void PopulateTableData();
+	void UpdateTableWithFilteredData(const std::vector<std::shared_ptr<SheetData>>& filteredData);
+	void ResizeControls(int cx, int cy);
+	void AdjustFilterControls(int cx);
+	
+	// 数据操作方法
+	void LoadDataFromDatabase();
+	void SaveDataToDatabase();
+	bool CreateSheetTable();
+	
+	// 筛选相关方法
+	std::vector<std::shared_ptr<SheetData>> FilterSheetData(
+		const CString& buildingName,
+		const CString& specialty, 
+		const CString& designUnit,
+		const CTime& createTime);
+	void ResetFilter();
+	
+	// 表格操作方法
+	void InsertNewRow(int row);
+	void DeleteRow(int row);
+	void SelectFileForRow(int row);
+	void UpdateRowData(int row);
+	
+	// 编辑功能方法（参照BuildBuildingTableWindow）
+	void StartEdit(int nItem, int nSubItem);
+	void EndEdit(bool bSave);
+	CEdit* CreateEditControl(int nItem, int nSubItem);
+	
+	// 上传相关方法
+	void UploadSelectedSheets();
+	std::vector<std::shared_ptr<SheetData>> GetSelectedSheets();
+	
+	// 辅助方法
+	void ShowContextMenu(CPoint point);
+	CString GetSpecialtyText(int specialtyIndex);
+	int GetSpecialtyIndex(const CString& specialtyText);
+	CString GetStatusText(int statusIndex);
+	int GetStatusIndex(const CString& statusText);
+	std::wstring GetCurrentTimeString();
+	
+	// 常量定义（调整按钮高度和最小窗口尺寸）
+	static const int MIN_WIDTH = 700;   // 增加最小宽度
+	static const int MIN_HEIGHT = 350;
+	static const int BUTTON_HEIGHT = 14; // 按钮高度改为14像素
+	
+	// 表格列索引
+	enum ColumnIndex {
+		COL_SELECT = 0,      // 选择状态
+		COL_NAME = 1,        // 图纸名称
+		COL_BUILDING = 2,    // 大楼名称
+		COL_SPECIALTY = 3,   // 专业
+		COL_FORMAT = 4,      // 图纸格式
+		COL_STATUS = 5,      // 图纸状态
+		COL_VERSION = 6,     // 版本号
+		COL_DESIGN_UNIT = 7, // 设计单位
+		COL_CREATE_TIME = 8, // 创建时间
+		COL_CREATOR = 9,     // 创建人
+		COL_OPERATION = 10   // 操作
+	};
+	
+	// 专业类型枚举
+	enum SpecialtyType {
+		SPECIALTY_STRUCTURE = 0,     // 结构
+		SPECIALTY_ENVELOPE = 1,      // 围(含室外)
+		SPECIALTY_DECORATION = 2,    // 装饰装修
+		SPECIALTY_WATER = 3,         // 给水排水
+		SPECIALTY_HEATING = 4,       // 供热采暖
+		SPECIALTY_HVAC = 5,          // 空调通风
+		SPECIALTY_ELECTRICAL = 6,    // 电气
+		SPECIALTY_ELEVATOR = 7,      // 电梯
+		SPECIALTY_INTELLIGENT = 8    // 建筑智能化(含消防)
+	};
+	
+
+
+};
