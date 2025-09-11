@@ -55,9 +55,6 @@ public:
 
     enum { IDD = IDD_BuildBuildingTableWindow };
 
-    // 单例模式实现
-    static BuildBuildingTableWindow* getInstance(CWnd *pParent = NULL, HINSTANCE hInstance = NULL);
-    static void destroyInstance();
 
 protected:
     virtual void DoDataExchange(CDataExchange *pDX);
@@ -77,8 +74,7 @@ protected:
     DECLARE_MESSAGE_MAP()
 
 private:
-    // 单例实例
-    static BuildBuildingTableWindow* m_pInstance;
+ 
     
     // 控件变量
     CListCtrl m_buildingTable;
@@ -116,7 +112,5 @@ private:
     void endEdit(bool bSave);
     CEdit* createEditControl(int nItem, int nSubItem);
     
-    // 禁用拷贝构造函数和赋值操作符
-    BuildBuildingTableWindow(const BuildBuildingTableWindow&);
-    BuildBuildingTableWindow& operator=(const BuildBuildingTableWindow&);
+   
 };

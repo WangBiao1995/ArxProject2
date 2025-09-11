@@ -14,4 +14,7 @@ public:
 	static void LogInfo(const TCHAR* format, ...);
 	static void LogWarning(const TCHAR* format, ...);
 	static void LogError(const TCHAR* format, ...);
+
+private:
+	static void writeToLogFile(LogLevel level, const TCHAR* timeStr, const TCHAR* message);
 };

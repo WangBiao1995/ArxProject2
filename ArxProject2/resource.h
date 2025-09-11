@@ -3,10 +3,9 @@
 // 供 ArxProject2.rc 使用
 //
 #define IDS_PROJNAME                    100
-#define IDC_EDIT1                       100
+
 #define IDD_DIALOG1                     102
-#define IDD_DIALOG2                     104
-#define IDD_BuildBuildingTableWindow    104
+#define IDD_BuildBuildingTableWindow    1104  // 改为1104，避免冲突
 #define IDD_ManagerSystemLogin          106
 #define IDD_SheetListWindow             108
 #define IDC_TITLE_LABEL                 1001

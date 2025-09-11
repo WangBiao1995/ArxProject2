@@ -33,8 +33,8 @@
 //-----------------------------------------------------------------------------
 IMPLEMENT_DYNAMIC(BuildBuildingTableWindow, CAdUiBaseDialog)
 
-// 静态成员初始化
-BuildBuildingTableWindow* BuildBuildingTableWindow::m_pInstance = nullptr;
+//// 静态成员初始化
+//BuildBuildingTableWindow* BuildBuildingTableWindow::m_pInstance = nullptr;
 
 BEGIN_MESSAGE_MAP(BuildBuildingTableWindow, CAdUiBaseDialog)
     ON_MESSAGE(WM_ACAD_KEEPFOCUS, OnAcadKeepFocus)
@@ -49,28 +49,6 @@ BEGIN_MESSAGE_MAP(BuildBuildingTableWindow, CAdUiBaseDialog)
     ON_WM_SIZE()
 END_MESSAGE_MAP()
 
-//-----------------------------------------------------------------------------
-// 单例模式实现
-BuildBuildingTableWindow* BuildBuildingTableWindow::getInstance(CWnd *pParent, HINSTANCE hInstance)
-{
-    if (m_pInstance == nullptr) {
-        m_pInstance = new BuildBuildingTableWindow(pParent, hInstance);
-    }
-    return m_pInstance;
-}
-
-void BuildBuildingTableWindow::destroyInstance()
-{
-    if (m_pInstance != nullptr) {
-        if (m_pInstance->GetSafeHwnd()) {
-            m_pInstance->DestroyWindow();
-        }
-        delete m_pInstance;
-        m_pInstance = nullptr;
-    }
-}
-
-//-----------------------------------------------------------------------------
 BuildBuildingTableWindow::BuildBuildingTableWindow(CWnd *pParent /*=NULL*/, HINSTANCE hInstance /*=NULL*/) 
     : CAdUiBaseDialog(BuildBuildingTableWindow::IDD, pParent, hInstance)
     , m_pEditCtrl(nullptr)
@@ -81,10 +59,7 @@ BuildBuildingTableWindow::BuildBuildingTableWindow(CWnd *pParent /*=NULL*/, HINS
 
 BuildBuildingTableWindow::~BuildBuildingTableWindow()
 {
-    // 如果这是单例实例，则清空静态指针
-    if (m_pInstance == this) {
-        m_pInstance = nullptr;
-    }
+
 }
 
 //-----------------------------------------------------------------------------
@@ -149,11 +124,24 @@ void BuildBuildingTableWindow::initializeControls()
 //-----------------------------------------------------------------------------
 void BuildBuildingTableWindow::setupTableColumns()
 {
-    // 清除现有列
-    while (m_buildingTable.GetHeaderCtrl()->GetItemCount() > 0) {
-        m_buildingTable.DeleteColumn(0);
+    // 检查表格控件是否有效
+    if (!::IsWindow(m_buildingTable.GetSafeHwnd())) {
+        CadLogger::LogError(_T("表格控件未正确初始化"));
+        return;
     }
     
+    // 检查表头控件是否有效
+    CHeaderCtrl* pHeader = m_buildingTable.GetHeaderCtrl();
+    if (!pHeader || !::IsWindow(pHeader->GetSafeHwnd())) {
+        CadLogger::LogError(_T("表头控件获取失败"));
+        return;
+    }
+    
+    // 清除现有列
+		while (pHeader->GetItemCount() > 0) {
+			m_buildingTable.DeleteColumn(0);
+		}
+
     // 添加列，调整列宽以适应600像素宽度的窗口
     m_buildingTable.InsertColumn(0, _T("大楼名称"), LVCFMT_LEFT, 90);
     m_buildingTable.InsertColumn(1, _T("地址"), LVCFMT_LEFT, 120);
@@ -182,11 +170,11 @@ bool BuildBuildingTableWindow::createBuildingTable()
     std::wstring errorMsg;
     if (!SqlDB::executeQuery(sql, errorMsg)) {
         CString errMsg(errorMsg.c_str());
-        CadLogger::LogError(_T("创建大楼信息表失败: %s"), errMsg);
+        CadLogger::LogError(_T("Failed to create building_info table: %s"), errMsg);
         return false;
     }
     
-    CadLogger::LogInfo(_T("大楼信息表创建成功或已存在"));
+    CadLogger::LogInfo(_T("Building info table created successfully or already exists"));
     return true;
 }
 
@@ -224,11 +212,11 @@ void BuildBuildingTableWindow::loadDataFromDatabase()
             }
         }
         
-        CadLogger::LogInfo(_T("从数据库加载了 %d 条大楼数据"), static_cast<int>(m_buildingDataList.size()));
+        CadLogger::LogInfo(_T("Loaded %d building records from database"), static_cast<int>(m_buildingDataList.size()));
     } else {
         // 查询失败，记录错误并使用示例数据
         CString errMsg(errorMsg.c_str());
-        CadLogger::LogWarning(_T("从数据库加载数据失败: %s，使用示例数据"), errMsg);
+        CadLogger::LogWarning(_T("Failed to load data from database: %s, using sample data"), errMsg);
         
         // 添加示例数据作为备用
         BuildingData sampleData1;
@@ -296,7 +284,7 @@ void BuildBuildingTableWindow::saveDataToDatabase()
     std::wstring errorMsg;
     if (!SqlDB::executeQuery(clearSql, errorMsg)) {
         CString errMsg(errorMsg.c_str());
-        CadLogger::LogError(_T("清空大楼数据失败: %s"), errMsg);
+        CadLogger::LogError(_T("Failed to clear building data: %s"), errMsg);
         AfxMessageBox(_T("保存失败：无法清空旧数据"));
         return;
     }
@@ -349,7 +337,7 @@ void BuildBuildingTableWindow::saveDataToDatabase()
     CString msg;
     msg.Format(_T("成功保存 %d/%d 条记录到数据库"), successCount, itemCount);
     AfxMessageBox(msg);
-    CadLogger::LogInfo(_T("保存大楼数据: %s"), msg);
+    CadLogger::LogInfo(_T("Saved building data: %s"), msg);
 }
 
 //-----------------------------------------------------------------------------
@@ -368,7 +356,7 @@ bool BuildBuildingTableWindow::insertBuildingData(const BuildingData& data)
     std::wstring errorMsg;
     if (!SqlDB::executeQuery(sql, errorMsg)) {
         CString errMsg(errorMsg.c_str());
-        CadLogger::LogError(_T("插入大楼数据失败: %s"), errMsg);
+        CadLogger::LogError(_T("Failed to insert building data: %s"), errMsg);
         return false;
     }
     
@@ -439,7 +427,7 @@ void BuildBuildingTableWindow::filterData()
     
     CString msg;
     msg.Format(_T("筛选完成，共找到 %d 条记录"), m_buildingTable.GetItemCount());
-    CadLogger::LogInfo(_T("筛选大楼数据: %s"), msg);
+    CadLogger::LogInfo(_T("Filtered building data: %s"), msg);
 }
 
 //-----------------------------------------------------------------------------
