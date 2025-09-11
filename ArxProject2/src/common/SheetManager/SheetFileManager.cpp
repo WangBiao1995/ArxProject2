@@ -132,7 +132,10 @@ bool SheetFileManager::downloadFile(const std::wstring& serverFileName, const st
         return false;
     }
     
-    BOOL result = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
+    // 添加Authorization header
+    std::wstring authHeader = L"Authorization: JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU3NjcwMTAzLCJpYXQiOjE3NTc1ODM3MDMsImp0aSI6ImRlMThjNzI0NDVmMDQ5OTRhYjI1MTU5ZmFjYzg4YTdmIiwidXNlcl9pZCI6MX0.za_jXiKDEy0Isb8Y2jn71ywjOeZN1efqYipfVOZQe0E";
+    
+    BOOL result = WinHttpSendRequest(hRequest, authHeader.c_str(), (DWORD)authHeader.length(), WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
     if (!result) {
         CadLogger::LogError(_T("发送下载请求失败"));
         WinHttpCloseHandle(hRequest);
@@ -336,8 +339,9 @@ void SheetFileManager::performUpload(const UploadTask& task)
     // 计算总大小
     DWORD totalSize = (DWORD)(postDataStr.length() + fileSize + endBoundary.length());
     
-    // 设置请求头
-    std::wstring headers = L"Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW";
+    // 设置请求头，包含Authorization
+    std::wstring headers = L"Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW\r\n"
+                          L"Authorization: JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU3NjcwMTAzLCJpYXQiOjE3NTc1ODM3MDMsImp0aSI6ImRlMThjNzI0NDVmMDQ5OTRhYjI1MTU5ZmFjYzg4YTdmIiwidXNlcl9pZCI6MX0.za_jXiKDEy0Isb8Y2jn71ywjOeZN1efqYipfVOZQe0E";
     
     BOOL result = WinHttpSendRequest(hRequest,
                                     headers.c_str(),
