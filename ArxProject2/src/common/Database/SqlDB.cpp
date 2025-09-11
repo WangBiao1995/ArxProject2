@@ -62,10 +62,9 @@ bool SqlDB::initDatabase()
         // 设置连接超时
         SQLSetConnectAttr(m_hDbc, SQL_LOGIN_TIMEOUT, (SQLPOINTER)5, 0);
         
-        // 连接到数据库
-        // 这里使用PostgreSQL的ODBC连接字符串
+        // 连接到数据库 - 修改为您的云端数据库配置
         acutPrintf(_T("\nStep 4: Connecting to database...\n"));
-        std::wstring connStr = L"DRIVER={PostgreSQL Unicode};SERVER=localhost;PORT=5432;DATABASE=postgres;UID=postgres;PWD=1234;";
+        std::wstring connStr = L"DRIVER={PostgreSQL Unicode};SERVER=192.168.1.77;PORT=5432;DATABASE=postgres;UID=postgres;PWD=utum@1009;";
         
         ret = SQLDriverConnect(m_hDbc, NULL, (SQLWCHAR*)connStr.c_str(), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_NOPROMPT);
         
@@ -73,8 +72,6 @@ bool SqlDB::initDatabase()
             std::wstring error = getLastError();
             acutPrintf(_T("\nERROR: Database connection failed\n"));
             acutPrintf(_T("Error details: %s\n"), error.c_str());
-            // 临时注释掉 CadLogger，直接使用 acutPrintf
-            // CadLogger::LogError(_T("Database connection failed: %s"), error.c_str());
             
             SQLFreeHandle(SQL_HANDLE_DBC, m_hDbc);
             SQLFreeHandle(SQL_HANDLE_ENV, m_hEnv);
@@ -84,9 +81,7 @@ bool SqlDB::initDatabase()
         }
         acutPrintf(_T("\nStep 4: SUCCESS\n"));
         
-        // 直接使用 acutPrintf 而不是 CadLogger
         acutPrintf(_T("\nPostgreSQL database connected successfully!\n"));
-        // CadLogger::LogInfo(_T("PostgreSQL database connected successfully!"));
         return true;
         
     } catch (...) {

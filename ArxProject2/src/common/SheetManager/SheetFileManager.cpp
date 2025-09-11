@@ -27,8 +27,8 @@ SheetFileManager::SheetFileManager()
         CreateDirectory(m_cacheDirectory.c_str(), nullptr);
     }
     
-    // 设置服务器地址
-    m_serverBaseUrl = L"localhost";
+    // 设置服务器地址 - 修改为您的云端服务器
+    m_serverBaseUrl = L"192.168.1.77";
     
     // 初始化WinHTTP
     m_hSession = WinHttpOpen(L"SheetFileManager/1.0",
@@ -37,7 +37,7 @@ SheetFileManager::SheetFileManager()
                             WINHTTP_NO_PROXY_BYPASS,
                             0);
     if (m_hSession) {
-        m_hConnect = WinHttpConnect(m_hSession, m_serverBaseUrl.c_str(), 8080, 0);
+        m_hConnect = WinHttpConnect(m_hSession, m_serverBaseUrl.c_str(), 8000, 0);
     }
     // 加载缓存索引
     loadCacheIndex();
@@ -117,7 +117,8 @@ bool SheetFileManager::downloadFile(const std::wstring& serverFileName, const st
         return false;
     }
     
-    std::wstring requestPath = L"/download/" + serverFileName;
+    // 修改为您的下载API路径
+    std::wstring requestPath = L"/api/system/file/" + serverFileName;
     HINTERNET hRequest = WinHttpOpenRequest(m_hConnect,
                                            L"GET",
                                            requestPath.c_str(),
@@ -275,9 +276,10 @@ void SheetFileManager::performUpload(const UploadTask& task)
         return;
     }
     
+    // 修改为您的上传API路径
     HINTERNET hRequest = WinHttpOpenRequest(m_hConnect,
                                            L"POST",
-                                           L"/upload",
+                                           L"/api/system/file/",
                                            nullptr,
                                            WINHTTP_NO_REFERER,
                                            WINHTTP_DEFAULT_ACCEPT_TYPES,
@@ -432,7 +434,8 @@ bool SheetFileManager::deleteFile(const std::wstring& serverFileName)
         return false;
     }
     
-    std::wstring requestPath = L"/delete/" + serverFileName;
+    // 修改为您的删除API路径
+    std::wstring requestPath = L"/api/system/file/" + serverFileName;
     HINTERNET hRequest = WinHttpOpenRequest(m_hConnect,
                                            L"DELETE",
                                            requestPath.c_str(),
@@ -745,6 +748,90 @@ void SheetFileManager::updateTextIndexForUploadedFile(const UploadTask& task)
     } else {
         CadLogger::LogInfo(_T("成功为上传文件建立文本索引: 本地路径=%s"), task.localFilePath.c_str());
     }
+}
+
+bool SheetFileManager::getFileList(std::vector<std::wstring>& fileList, std::wstring& errorMsg)
+{
+    fileList.clear();
+    
+    if (!m_hConnect) {
+        errorMsg = L"WinHTTP连接未初始化";
+        return false;
+    }
+    
+    // 使用您的获取文件列表API
+    std::wstring requestPath = L"/api/system/file/";
+    HINTERNET hRequest = WinHttpOpenRequest(m_hConnect,
+                                           L"GET",
+                                           requestPath.c_str(),
+                                           nullptr,
+                                           WINHTTP_NO_REFERER,
+                                           WINHTTP_DEFAULT_ACCEPT_TYPES,
+                                           0);
+    
+    if (!hRequest) {
+        errorMsg = L"创建文件列表请求失败";
+        return false;
+    }
+    
+    BOOL result = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
+    if (!result) {
+        errorMsg = L"发送文件列表请求失败";
+        WinHttpCloseHandle(hRequest);
+        return false;
+    }
+    
+    result = WinHttpReceiveResponse(hRequest, nullptr);
+    if (!result) {
+        errorMsg = L"接收文件列表响应失败";
+        WinHttpCloseHandle(hRequest);
+        return false;
+    }
+    
+    // 检查HTTP状态码
+    DWORD statusCode = 0;
+    DWORD statusCodeSize = sizeof(statusCode);
+    WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                       WINHTTP_HEADER_NAME_BY_INDEX, &statusCode, &statusCodeSize, WINHTTP_NO_HEADER_INDEX);
+    
+    if (statusCode != 200) {
+        errorMsg = L"获取文件列表失败，HTTP状态码: " + std::to_wstring(statusCode);
+        WinHttpCloseHandle(hRequest);
+        return false;
+    }
+    
+    // 读取响应内容
+    DWORD bytesAvailable = 0;
+    DWORD bytesRead = 0;
+    char buffer[8192];
+    std::string responseData;
+    
+    do {
+        if (!WinHttpQueryDataAvailable(hRequest, &bytesAvailable)) {
+            break;
+        }
+        
+        if (bytesAvailable == 0) {
+            break;
+        }
+        
+        DWORD bytesToRead = min(bytesAvailable, sizeof(buffer));
+        if (!WinHttpReadData(hRequest, buffer, bytesToRead, &bytesRead)) {
+            break;
+        }
+        
+        responseData.append(buffer, bytesRead);
+        
+    } while (bytesAvailable > 0);
+    
+    WinHttpCloseHandle(hRequest);
+    
+    // 这里需要解析JSON响应来提取文件列表
+    // 由于您使用的是nlohmann/json库，可以在这里解析响应
+    // 暂时返回成功，实际实现需要根据您的API响应格式来解析
+    
+    CadLogger::LogInfo(_T("文件列表获取成功"));
+    return true;
 }
 
 // SheetStatusManager 实现

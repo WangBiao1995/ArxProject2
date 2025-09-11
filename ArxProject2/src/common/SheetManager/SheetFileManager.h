@@ -73,6 +73,9 @@ public:
     void setDownloadCompletedCallback(DownloadCompletedCallback callback) { m_downloadCompletedCallback = callback; }
     void setTaskQueueChangedCallback(TaskQueueChangedCallback callback) { m_taskQueueChangedCallback = callback; }
 
+    // 新增：获取文件列表
+    bool getFileList(std::vector<std::wstring>& fileList, std::wstring& errorMsg);
+
 private:
     // 文件命名冲突处理
     std::wstring resolveFileNameConflict(const std::wstring& baseName, const std::wstring& extension);
