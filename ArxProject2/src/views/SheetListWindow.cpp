@@ -733,26 +733,27 @@ void SheetListWindow::ResizeControls(int cx, int cy)
 	// 调整筛选区域的控件位置
 	AdjustFilterControls(cx);
 	
-	// 调整进度条位置
+	// 重新调整进度条位置到窗口中心
 	if (::IsWindow(m_uploadProgressCtrl.GetSafeHwnd())) {
-		CRect uploadBtnRect;
-		m_uploadButton.GetWindowRect(&uploadBtnRect);
-		ScreenToClient(&uploadBtnRect);
+		int progressWidth = 300;
+		int progressHeight = 25;
+		int labelHeight = 20;
 		
+		// 进度条位置（窗口中心）
 		CRect progressRect;
-		progressRect.left = uploadBtnRect.left;
-		progressRect.right = uploadBtnRect.right + 200;
-		progressRect.top = uploadBtnRect.bottom + 10;
-		progressRect.bottom = progressRect.top + 20;
+		progressRect.left = (cx - progressWidth) / 2;
+		progressRect.right = progressRect.left + progressWidth;
+		progressRect.top = (cy - progressHeight - labelHeight - 10) / 2;
+		progressRect.bottom = progressRect.top + progressHeight;
 		
 		m_uploadProgressCtrl.MoveWindow(&progressRect);
 		
-		// 调整状态标签位置
+		// 状态标签位置（进度条下方）
 		CRect labelRect;
 		labelRect.left = progressRect.left;
 		labelRect.right = progressRect.right;
-		labelRect.top = progressRect.bottom + 5;
-		labelRect.bottom = labelRect.top + 20;
+		labelRect.top = progressRect.bottom + 10;
+		labelRect.bottom = labelRect.top + labelHeight;
 		
 		m_uploadStatusLabel.MoveWindow(&labelRect);
 	}
@@ -1410,7 +1411,10 @@ void SheetListWindow::UploadSelectedSheets()
 		auto selectedSheets = GetSelectedSheets();
 		
 		if (selectedSheets.empty()) {
-			AfxMessageBox(_T("请先选择要上传的图纸！"));
+			// 使用状态标签显示提示，而不是弹窗
+			m_uploadStatusLabel.SetWindowText(_T("请先选择要上传的图纸"));
+			m_uploadStatusLabel.ShowWindow(SW_SHOW);
+			SetTimer(2004, 2000, nullptr); // 2秒后隐藏提示
 			return;
 		}
 		
@@ -1450,27 +1454,13 @@ void SheetListWindow::UploadSelectedSheets()
 			});
 		}
 		
-		// 确认上传
-		CString message;
-		message.Format(_T("确定要上传 %d 个图纸文件吗？\n\n选中的文件：\n"), static_cast<int>(selectedSheets.size()));
-		
-		for (const auto& sheet : selectedSheets) {
-			CString fileName = PathFindFileName(sheet->filePath.c_str());
-			message += fileName + _T("\n");
-		}
-		
-		if (AfxMessageBox(message, MB_YESNO | MB_ICONQUESTION) != IDYES) {
-			return;
-		}
-		
+		// 直接开始上传，不再弹出确认对话框
 		// 创建上传任务
 		int taskCount = 0;
 		for (const auto& sheet : selectedSheets) {
 			// 检查文件是否存在
 			if (!PathFileExists(sheet->filePath.c_str())) {
-				CString msg;
-				msg.Format(_T("文件不存在：%s"), sheet->filePath.c_str());
-				CadLogger::LogWarning(msg);
+				CadLogger::LogWarning(_T("文件不存在：%s"), sheet->filePath.c_str());
 				continue;
 			}
 			
@@ -1510,18 +1500,25 @@ void SheetListWindow::UploadSelectedSheets()
 			// 开始批量上传
 			m_fileManager->startBatchUpload();
 			
+			// 使用状态标签显示信息，而不是弹窗
 			CString msg;
 			msg.Format(_T("已添加 %d 个上传任务，正在后台处理..."), taskCount);
-			AfxMessageBox(msg);
+			m_uploadStatusLabel.SetWindowText(msg);
+			m_uploadStatusLabel.ShowWindow(SW_SHOW);
 			
 			CadLogger::LogInfo(_T("已添加 %d 个上传任务"), taskCount);
 		} else {
-			AfxMessageBox(_T("没有有效的文件可以上传！"));
+			// 使用状态标签显示错误信息，而不是弹窗
+			m_uploadStatusLabel.SetWindowText(_T("没有有效的文件可以上传"));
+			m_uploadStatusLabel.ShowWindow(SW_SHOW);
+			SetTimer(2004, 2000, nullptr); // 2秒后隐藏提示
 		}
 		
 	} catch (...) {
 		CadLogger::LogError(_T("上传图纸时发生异常"));
-		AfxMessageBox(_T("上传过程中发生异常！"));
+		m_uploadStatusLabel.SetWindowText(_T("上传过程中发生异常"));
+		m_uploadStatusLabel.ShowWindow(SW_SHOW);
+		SetTimer(2004, 2000, nullptr); // 2秒后隐藏提示
 	}
 }
 
@@ -1562,6 +1559,10 @@ void SheetListWindow::OnUploadProgress(const std::wstring& fileName, __int64 byt
                 m_isUploading = true;
                 m_uploadProgressCtrl.ShowWindow(SW_SHOW);
                 m_uploadStatusLabel.ShowWindow(SW_SHOW);
+                
+                // 将进度条置于最前面
+                m_uploadProgressCtrl.BringWindowToTop();
+                m_uploadStatusLabel.BringWindowToTop();
             }
             
             // 更新进度条
@@ -1573,14 +1574,15 @@ void SheetListWindow::OnUploadProgress(const std::wstring& fileName, __int64 byt
                             CString(fileName.c_str()), progress);
             m_uploadStatusLabel.SetWindowText(statusText);
             
-            // 同时更新窗口标题
+            // 只在窗口标题中显示进度，不弹窗
             CString title;
-            title.Format(_T("图纸列表 - %s"), statusText);
+            title.Format(_T("图纸列表 - 上传进度: %d%%"), progress);
             SetWindowText(title);
         }
         
     } catch (...) {
-        // 静默处理异常
+        // 静默处理异常，记录日志但不弹窗
+        CadLogger::LogError(_T("更新上传进度时发生异常"));
     }
 }
 
@@ -1598,12 +1600,18 @@ void SheetListWindow::OnUploadCompleted(const std::wstring& fileName, bool succe
             // 触发文本索引更新
             UpdateTextIndexForUploadedFile(fileName);
             
+            // 记录成功日志，不弹窗
+            CadLogger::LogInfo(_T("文件上传成功: %s"), fileName.c_str());
+            
         } else {
             // 显示失败状态
             m_uploadStatusLabel.SetWindowText(_T("上传失败"));
             
             // 更新对应图纸的状态
             UpdateSheetStatus(fileName, _T("上传失败"));
+            
+            // 记录失败日志，不弹窗
+            CadLogger::LogError(_T("文件上传失败: %s"), fileName.c_str());
         }
         
         // 延迟隐藏进度条（3秒后）
@@ -1614,6 +1622,7 @@ void SheetListWindow::OnUploadCompleted(const std::wstring& fileName, bool succe
         
     } catch (...) {
         m_uploadStatusLabel.SetWindowText(_T("处理上传结果时发生异常"));
+        CadLogger::LogError(_T("处理上传结果时发生异常"));
     }
 }
 
@@ -1855,6 +1864,12 @@ void SheetListWindow::OnTimer(UINT_PTR nIDEvent)
         
         return;
     }
+    else if (nIDEvent == 2004) {
+        // 隐藏提示信息
+        KillTimer(2004);
+        m_uploadStatusLabel.ShowWindow(SW_HIDE);
+        return;
+    }
     
     CAdUiBaseDialog::OnTimer(nIDEvent);
 }
@@ -1926,34 +1941,38 @@ LRESULT SheetListWindow::OnUploadCompletedMessage(WPARAM wParam, LPARAM lParam)
 // 新增方法：创建进度条控件
 void SheetListWindow::CreateProgressControls()
 {
-    // 获取上传按钮的位置，在其下方创建进度条
-    CRect uploadBtnRect;
-    m_uploadButton.GetWindowRect(&uploadBtnRect);
-    ScreenToClient(&uploadBtnRect);
+    // 获取窗口客户区大小
+    CRect clientRect;
+    GetClientRect(&clientRect);
     
-    // 计算进度条位置
+    // 计算进度条在窗口中心的位置
+    int progressWidth = 300;   // 进度条宽度
+    int progressHeight = 25;   // 进度条高度
+    int labelHeight = 20;      // 标签高度
+    
+    // 进度条位置（窗口中心）
     CRect progressRect;
-    progressRect.left = uploadBtnRect.left;
-    progressRect.right = uploadBtnRect.right + 200;  // 扩展宽度
-    progressRect.top = uploadBtnRect.bottom + 10;    // 距离按钮10像素
-    progressRect.bottom = progressRect.top + 20;     // 高度20像素
+    progressRect.left = (clientRect.Width() - progressWidth) / 2;
+    progressRect.right = progressRect.left + progressWidth;
+    progressRect.top = (clientRect.Height() - progressHeight - labelHeight - 10) / 2;
+    progressRect.bottom = progressRect.top + progressHeight;
     
     // 创建进度条
-    m_uploadProgressCtrl.Create(WS_CHILD | WS_VISIBLE | PBS_SMOOTH, 
+    m_uploadProgressCtrl.Create(WS_CHILD | PBS_SMOOTH, 
                                progressRect, this, 2001);
     m_uploadProgressCtrl.SetRange(0, 100);
     m_uploadProgressCtrl.SetPos(0);
     m_uploadProgressCtrl.ShowWindow(SW_HIDE);  // 初始隐藏
     
-    // 计算状态标签位置
+    // 状态标签位置（进度条下方）
     CRect labelRect;
     labelRect.left = progressRect.left;
     labelRect.right = progressRect.right;
-    labelRect.top = progressRect.bottom + 5;
-    labelRect.bottom = labelRect.top + 20;
+    labelRect.top = progressRect.bottom + 10;
+    labelRect.bottom = labelRect.top + labelHeight;
     
     // 创建状态标签
-    m_uploadStatusLabel.Create(_T(""), WS_CHILD | WS_VISIBLE | SS_LEFT,
+    m_uploadStatusLabel.Create(_T(""), WS_CHILD | SS_CENTER,
                               labelRect, this, 2002);
     m_uploadStatusLabel.ShowWindow(SW_HIDE);  // 初始隐藏
 }
