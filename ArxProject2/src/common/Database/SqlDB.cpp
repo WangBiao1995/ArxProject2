@@ -172,19 +172,51 @@ bool SqlDB::executeQuery(const std::wstring& sql, std::wstring& errorMsg)
             return false;
         }
         
-        SQLHSTMT hStmt;
+        SQLHSTMT hStmt = SQL_NULL_HSTMT;
         SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, m_hDbc, &hStmt);
         if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
-            errorMsg = L"分配语句句柄失败";
+            errorMsg = L"分配语句句柄失败，返回码: " + std::to_wstring(ret);
             return false;
         }
         
         ret = SQLExecDirect(hStmt, (SQLWCHAR*)sql.c_str(), SQL_NTS);
-        if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
+        
+        // 添加详细的返回码日志
+        acutPrintf(_T("SQLExecDirect返回码: %d\n"), ret);
+        
+        // 修改成功条件：包含 SQL_NO_DATA (100)
+        if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO || ret == SQL_NO_DATA) {
+            if (ret == SQL_NO_DATA) {
+                acutPrintf(_T("SQL执行成功，但没有数据返回（这对DELETE操作是正常的）\n"));
+            } else {
+                acutPrintf(_T("SQL执行成功\n"));
+            }
             SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
             return true;
         } else {
-            errorMsg = getLastError();
+            // 获取详细错误信息
+            SQLWCHAR sqlState[6] = {0};
+            SQLWCHAR messageText[1024] = {0};
+            SQLINTEGER nativeError = 0;
+            SQLSMALLINT textLength = 0;
+            
+            SQLRETURN diagRet = SQLGetDiagRec(SQL_HANDLE_STMT, hStmt, 1, sqlState, &nativeError, 
+                                            messageText, sizeof(messageText)/sizeof(SQLWCHAR), &textLength);
+            
+            if (diagRet == SQL_SUCCESS || diagRet == SQL_SUCCESS_WITH_INFO) {
+                if (textLength > 0 && textLength < (sizeof(messageText)/sizeof(SQLWCHAR))) {
+                    messageText[textLength] = L'\0';
+                }
+                
+                errorMsg = L"SQL执行失败 - 返回码: " + std::to_wstring(ret) +
+                          L", SQL状态: " + std::wstring(sqlState) + 
+                          L", 错误代码: " + std::to_wstring(nativeError) + 
+                          L", 消息: " + std::wstring(messageText);
+            } else {
+                errorMsg = L"SQL执行失败，返回码: " + std::to_wstring(ret) + L", 无法获取详细错误信息";
+            }
+            
+            acutPrintf(_T("SQL执行失败: %s\n"), errorMsg.c_str());
             SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
             return false;
         }
@@ -698,16 +730,34 @@ bool SqlDB::insertDrawingData()
 // 获取最后的错误信息
 std::wstring SqlDB::getLastError()
 {
-    SQLWCHAR sqlState[6], messageText[256];
-    SQLINTEGER nativeError;
-    SQLSMALLINT textLength;
+    SQLWCHAR sqlState[6] = {0};
+    SQLWCHAR messageText[1024] = {0};  // 增加缓冲区大小
+    SQLINTEGER nativeError = 0;
+    SQLSMALLINT textLength = 0;
+    
+    std::wstring result = L"未知错误";
     
     if (m_hDbc != SQL_NULL_HDBC) {
-        SQLGetDiagRec(SQL_HANDLE_DBC, m_hDbc, 1, sqlState, &nativeError, messageText, sizeof(messageText)/sizeof(SQLWCHAR), &textLength);
-        return std::wstring(messageText);
+        SQLRETURN ret = SQLGetDiagRec(SQL_HANDLE_DBC, m_hDbc, 1, sqlState, &nativeError, 
+                                     messageText, sizeof(messageText)/sizeof(SQLWCHAR), &textLength);
+        
+        if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
+            // 确保字符串正确终止
+            if (textLength >= 0 && textLength < (sizeof(messageText)/sizeof(SQLWCHAR))) {
+                messageText[textLength] = L'\0';
+            } else {
+                messageText[sizeof(messageText)/sizeof(SQLWCHAR) - 1] = L'\0';
+            }
+            
+            result = L"SQL状态: " + std::wstring(sqlState) + 
+                   L", 错误代码: " + std::to_wstring(nativeError) + 
+                   L", 消息: " + std::wstring(messageText);
+        } else {
+            result = L"无法获取错误信息，SQLGetDiagRec返回码: " + std::to_wstring(ret);
+        }
     }
     
-    return L"未知错误";
+    return result;
 } 
 
 

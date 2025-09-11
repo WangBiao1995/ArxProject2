@@ -738,9 +738,12 @@ void SheetFileManager::scheduleRetry(const UploadTask& task)
 void SheetFileManager::updateTextIndexForUploadedFile(const UploadTask& task)
 {
     // 为上传的文件更新文本索引
+    // 传入本地文件路径，SearchTextInDwg 会自动转换为服务器文件名保存
     std::wstring errorMsg;
     if (!SearchTextInDwg::buildTextIndexForDrawing(task.localFilePath, errorMsg)) {
         CadLogger::LogWarning(_T("为上传文件建立文本索引失败: %s"), errorMsg.c_str());
+    } else {
+        CadLogger::LogInfo(_T("成功为上传文件建立文本索引: 本地路径=%s"), task.localFilePath.c_str());
     }
 }
 
