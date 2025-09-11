@@ -69,6 +69,15 @@
     <ClCompile Include="src\services\SearchTextInDwg.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\common\Geometry\GePointUtil.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\SymbolTable\ViewUtil.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\Geometry\MathUtil.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="StdAfx.h">
@@ -123,6 +132,15 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\services\SearchTextInDwg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\Geometry\GePointUtil.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\SymbolTable\ViewUtil.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\Geometry\MathUtil.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

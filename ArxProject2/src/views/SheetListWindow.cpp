@@ -216,7 +216,7 @@ BOOL SheetListWindow::OnInitDialog()
 	CreateProgressControls();
 	
 	// 窗口最大化显示（参照BuildBuildingTableWindow）
-	ShowWindow(SW_SHOWMAXIMIZED);
+	//ShowWindow(SW_SHOWMAXIMIZED);
 	
 	return TRUE;
 }

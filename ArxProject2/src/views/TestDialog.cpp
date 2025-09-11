@@ -25,6 +25,29 @@ CTestDialog::CTestDialog(CWnd* pParent /*=nullptr*/, HINSTANCE hInstance /*=null
     , m_nCurrentBuilding(0)
     , m_pSheetFileManager(nullptr)
 {
+    // 初始化文件管理器
+    m_pSheetFileManager = std::make_unique<SheetFileManager>();
+    
+    // 设置SearchTextInDwg使用相同的文件管理器
+    if (m_pSheetFileManager) {
+        SearchTextInDwg::setFileManager(m_pSheetFileManager.get());
+        
+        // 设置回调函数
+        m_pSheetFileManager->setUploadProgressCallback([this](const std::wstring& fileName, __int64 current, __int64 total) {
+            // 上传进度回调
+            double progress = (double)current / total * 100.0;
+            CString msg;
+            msg.Format(_T("上传进度: %s - %.1f%%"), WStringToCString(fileName), progress);
+            acutPrintf(_T("\n%s\n"), msg);
+        });
+        
+        m_pSheetFileManager->setUploadCompletedCallback([this](const std::wstring& fileName, bool success) {
+            // 上传完成回调
+            CString msg;
+            msg.Format(_T("上传%s: %s"), success ? _T("成功") : _T("失败"), WStringToCString(fileName));
+            acutPrintf(_T("\n%s\n"), msg);
+        });
+    }
 }
 
 CTestDialog::~CTestDialog()
@@ -119,25 +142,25 @@ void CTestDialog::InitializeServices()
     }
     
     // 初始化图纸文件管理器
-    m_pSheetFileManager = std::make_unique<SheetFileManager>();
+    // m_pSheetFileManager = std::make_unique<SheetFileManager>(); // 已在构造函数中初始化
     
     // 设置回调函数
-    if (m_pSheetFileManager) {
-        m_pSheetFileManager->setUploadProgressCallback([this](const std::wstring& fileName, __int64 current, __int64 total) {
-            // 上传进度回调
-            double progress = (double)current / total * 100.0;
-            CString msg;
-            msg.Format(_T("上传进度: %s - %.1f%%"), WStringToCString(fileName), progress);
-            acutPrintf(_T("\n%s\n"), msg);
-        });
+    // if (m_pSheetFileManager) { // 已在构造函数中设置
+    //     m_pSheetFileManager->setUploadProgressCallback([this](const std::wstring& fileName, __int64 current, __int64 total) {
+    //         // 上传进度回调
+    //         double progress = (double)current / total * 100.0;
+    //         CString msg;
+    //         msg.Format(_T("上传进度: %s - %.1f%%"), WStringToCString(fileName), progress);
+    //         acutPrintf(_T("\n%s\n"), msg);
+    //     });
         
-        m_pSheetFileManager->setUploadCompletedCallback([this](const std::wstring& fileName, bool success) {
-            // 上传完成回调
-            CString msg;
-            msg.Format(_T("上传%s: %s"), success ? _T("成功") : _T("失败"), WStringToCString(fileName));
-            acutPrintf(_T("\n%s\n"), msg);
-        });
-    }
+    //     m_pSheetFileManager->setUploadCompletedCallback([this](const std::wstring& fileName, bool success) {
+    //         // 上传完成回调
+    //         CString msg;
+    //         msg.Format(_T("上传%s: %s"), success ? _T("成功") : _T("失败"), WStringToCString(fileName));
+    //         acutPrintf(_T("\n%s\n"), msg);
+    //     });
+    // }
 }
 
 void CTestDialog::InitializeControls()
@@ -444,11 +467,15 @@ void CTestDialog::SearchDrawings()
     std::wstring errorMsg;
     
     m_searchResults = SearchTextInDwg::searchTextInDrawings(searchText, buildingName, errorMsg);
-    
-    if (!errorMsg.empty()) {
-        // 搜索失败，可能需要建立索引
+
+    // 如果搜索失败或结果为空，都询问是否建立索引
+    if (!errorMsg.empty() || m_searchResults.empty()) {
         CString msg;
-        msg.Format(_T("搜索失败: %s\n\n是否为当前大楼建立文本索引？"), WStringToCString(errorMsg));
+        if (!errorMsg.empty()) {
+            msg.Format(_T("搜索失败: %s\n\n是否为当前大楼建立文本索引？"), WStringToCString(errorMsg));
+        } else {
+            msg.Format(_T("在大楼 \"%s\" 中未找到包含 \"%s\" 的图纸\n\n可能需要建立文本索引。是否为当前大楼建立文本索引？"), currentBuilding, m_strSearchText);
+        }
         
         if (MessageBox(msg, _T("搜索提示"), MB_YESNO | MB_ICONQUESTION) == IDYES) {
             acutPrintf(_T("\n正在建立文本索引...\n"));
@@ -465,27 +492,20 @@ void CTestDialog::SearchDrawings()
         }
         return;
     }
-    
+
     // 更新树形控件显示搜索结果
     UpdateDrawingTreeWithSearchResults(m_searchResults);
     
     // 显示搜索结果统计
-    if (m_searchResults.empty()) {
-        CString msg;
-        msg.Format(_T("在大楼 \"%s\" 中未找到包含 \"%s\" 的图纸"), currentBuilding, m_strSearchText);
-        MessageBox(msg, _T("搜索结果"), MB_OK | MB_ICONINFORMATION);
-    } else {
-        // 统计找到的图纸数量
-        std::set<std::wstring> uniqueFiles;
-        for (const auto& result : m_searchResults) {
-            uniqueFiles.insert(result.filePath);
-        }
-        
-        CString msg;
-        msg.Format(_T("搜索完成：在 %d 张图纸中找到 %d 处匹配"), 
-                   (int)uniqueFiles.size(), (int)m_searchResults.size());
-        acutPrintf(_T("\n%s\n"), msg);
+    std::set<std::wstring> uniqueFiles;
+    for (const auto& result : m_searchResults) {
+        uniqueFiles.insert(result.filePath);
     }
+    
+    CString msg;
+    msg.Format(_T("搜索完成：在 %d 张图纸中找到 %d 处匹配"), 
+               (int)uniqueFiles.size(), (int)m_searchResults.size());
+    acutPrintf(_T("\n%s\n"), msg);
 }
 
 void CTestDialog::UpdateDrawingTreeWithSearchResults(const std::vector<TextSearchResult>& results)
