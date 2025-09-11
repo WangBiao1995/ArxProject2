@@ -108,9 +108,17 @@ private:
     bool DownloadDrawingIfNeeded(const std::wstring& serverFileName);
     std::wstring GetLocalFilePath(const std::wstring& serverFileName);
     
+    // JSON解析和编码转换相关方法
+    std::vector<std::wstring> ParseJsonResponse(const std::string& jsonData);
+    std::vector<std::wstring> ParseJsonResponseManually(const std::string& jsonData);
+    std::wstring Utf8ToWString(const std::string& utf8Str);
+    std::wstring GbkToWString(const std::string& gbkStr);
+    std::string UnescapeJsonString(const std::string& jsonStr);
+    
     // 辅助函数
     std::wstring CStringToWString(const CString& str);
     CString WStringToCString(const std::wstring& wstr);
+
 public:
     afx_msg void OnStnClickedTitleLabel();
 };

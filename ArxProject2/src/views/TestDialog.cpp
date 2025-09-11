@@ -3,6 +3,14 @@
 #include "../views/BuildBuildingTableWindow.h"
 #include "../views/SheetListWindow.h"
 #include <set>
+//网络相关头文件
+#include <winhttp.h>
+#include <vector>
+#include <string>
+#include "nlohmann/json.hpp"
+using json = nlohmann::json;
+
+#pragma comment(lib, "winhttp.lib") // 链接 WinHTTP 库
 
 // CTestDialog 对话框
 
@@ -658,13 +666,385 @@ std::vector<std::wstring> CTestDialog::GetAvailableDrawingsFromServer()
 {
     std::vector<std::wstring> drawings;
     
-    // 这里应该实现从服务器获取图纸列表的逻辑
-    // 暂时返回一些示例数据
-    drawings.push_back(L"Drawing1.dwg");
-    drawings.push_back(L"Drawing2.dwg");
-    drawings.push_back(L"Drawing3.dwg");
+    // 将变量声明移到最前面，避免 goto 跳过初始化
+    HINTERNET hSession = NULL;
+    HINTERNET hConnect = NULL;
+    HINTERNET hRequest = NULL;
+    std::string responseData;  // 移到这里声明
+    DWORD dwSize = 0;
+    DWORD dwDownloaded = 0;
+    
+    try {
+        // 初始化 WinHTTP
+        hSession = WinHttpOpen(L"CAD Drawing Manager/1.0",
+                              WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+                              WINHTTP_NO_PROXY_NAME,
+                              WINHTTP_NO_PROXY_BYPASS,
+                              0);
+        
+        if (!hSession) {
+            acutPrintf(_T("\n无法初始化网络连接\n"));
+            goto cleanup;
+        }
+        
+        // 连接到服务器
+        hConnect = WinHttpConnect(hSession,
+                                 L"localhost",  // 服务器地址
+                                 8080,          // 端口
+                                 0);
+        
+        if (!hConnect) {
+            acutPrintf(_T("\n无法连接到服务器\n"));
+            goto cleanup;
+        }
+        
+        // 创建请求
+        hRequest = WinHttpOpenRequest(hConnect,
+                                     L"GET",
+                                     L"/files",     // 请求路径
+                                     NULL,
+                                     WINHTTP_NO_REFERER,
+                                     WINHTTP_DEFAULT_ACCEPT_TYPES,
+                                     0);
+        
+        if (!hRequest) {
+            acutPrintf(_T("\n无法创建网络请求\n"));
+            goto cleanup;
+        }
+        
+        // 添加请求头，指定接受UTF-8编码
+        const wchar_t* headers = L"Accept: application/json\r\nAccept-Charset: utf-8\r\n";
+        
+        // 发送请求
+        BOOL bResults = WinHttpSendRequest(hRequest,
+                                          headers,
+                                          -1,  // 使用整个headers字符串
+                                          WINHTTP_NO_REQUEST_DATA,
+                                          0,
+                                          0,
+                                          0);
+        
+        if (!bResults) {
+            acutPrintf(_T("\n发送网络请求失败\n"));
+            goto cleanup;
+        }
+        
+        // 接收响应
+        bResults = WinHttpReceiveResponse(hRequest, NULL);
+        if (!bResults) {
+            acutPrintf(_T("\n接收服务器响应失败\n"));
+            goto cleanup;
+        }
+        
+        // 读取响应数据
+        do {
+            // 检查可用数据大小
+            dwSize = 0;
+            if (!WinHttpQueryDataAvailable(hRequest, &dwSize)) {
+                break;
+            }
+            
+            if (dwSize == 0) {
+                break;
+            }
+            
+            // 分配缓冲区
+            char* pszOutBuffer = new char[dwSize + 1];
+            if (!pszOutBuffer) {
+                break;
+            }
+            
+            // 读取数据
+            ZeroMemory(pszOutBuffer, dwSize + 1);
+            if (!WinHttpReadData(hRequest, (LPVOID)pszOutBuffer, dwSize, &dwDownloaded)) {
+                delete[] pszOutBuffer;
+                break;
+            }
+            
+            responseData.append(pszOutBuffer, dwDownloaded);
+            delete[] pszOutBuffer;
+            
+        } while (dwSize > 0);
+        
+        // 解析 JSON 响应
+        if (!responseData.empty()) {
+            drawings = ParseJsonResponse(responseData);
+            acutPrintf(_T("\n成功从服务器获取到 %d 个图纸文件\n"), (int)drawings.size());
+        }
+        
+cleanup:
+        // 清理资源
+        if (hRequest) WinHttpCloseHandle(hRequest);
+        if (hConnect) WinHttpCloseHandle(hConnect);
+        if (hSession) WinHttpCloseHandle(hSession);
+        
+    } catch (const std::exception& e) {
+        acutPrintf(_T("\n网络请求异常: %s\n"), CStringToWString(CString(e.what())).c_str());
+    } catch (...) {
+        acutPrintf(_T("\n网络请求发生未知异常\n"));
+    }
+    
+    // 如果网络请求失败，返回默认数据
+    if (drawings.empty()) {
+        acutPrintf(_T("\n使用默认图纸数据\n"));
+        drawings.push_back(L"Drawing1.dwg");
+        drawings.push_back(L"Drawing2.dwg");
+        drawings.push_back(L"Drawing3.dwg");
+    }
     
     return drawings;
+}
+
+
+// 优化 Utf8ToWString 方法，减少冗余输出
+std::wstring CTestDialog::Utf8ToWString(const std::string& utf8Str)
+{
+    if (utf8Str.empty()) {
+        return std::wstring();
+    }
+    
+    try {
+        // 计算需要的缓冲区大小
+        int wideSize = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8Str.c_str(), -1, NULL, 0);
+        if (wideSize <= 0) {
+            // UTF-8转换失败，静默尝试GBK编码
+            return GbkToWString(utf8Str);
+        }
+        
+        // 分配缓冲区并转换
+        std::vector<wchar_t> wideBuffer(wideSize);
+        int result = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8Str.c_str(), -1, &wideBuffer[0], wideSize);
+        if (result <= 0) {
+            // UTF-8转换失败，静默尝试GBK编码
+            return GbkToWString(utf8Str);
+        }
+        
+        return std::wstring(&wideBuffer[0]);
+    }
+    catch (...) {
+        // UTF-8转换异常，静默尝试GBK编码
+        return GbkToWString(utf8Str);
+    }
+}
+
+// 优化 ParseJsonResponse 方法，添加编码检测
+std::vector<std::wstring> CTestDialog::ParseJsonResponse(const std::string& jsonData)
+{
+    std::vector<std::wstring> fileList;
+
+    try {
+        // 尝试使用nlohmann::json库解析JSON
+        json jsonObj = json::parse(jsonData);
+        
+        // 检查是否有files数组
+        if (jsonObj.contains("files") && jsonObj["files"].is_array()) {
+            for (const auto& fileObj : jsonObj["files"]) {
+                if (fileObj.contains("filename") && fileObj["filename"].is_string()) {
+                    std::string filenameUtf8 = fileObj["filename"];
+                    
+                    // 直接使用UTF-8字符串转换为宽字符
+                    std::wstring filename = Utf8ToWString(filenameUtf8);
+                    if (!filename.empty()) {
+                        fileList.push_back(filename);
+                        acutPrintf(_T("\n解析到文件名: %s\n"), filename.c_str());
+                    }
+                }
+            }
+        }
+        
+        // 输出状态信息
+        if (jsonObj.contains("status")) {
+            std::string status = jsonObj["status"];
+            acutPrintf(_T("\n服务器状态: %s\n"), Utf8ToWString(status).c_str());
+        }
+        
+        if (jsonObj.contains("message")) {
+            std::string message = jsonObj["message"];
+            acutPrintf(_T("\n服务器消息: %s\n"), Utf8ToWString(message).c_str());
+        }
+        
+        acutPrintf(_T("\nJSON解析完成，共解析到 %d 个文件\n"), (int)fileList.size());
+
+    }
+    catch (const json::parse_error&) {
+        // JSON解析失败，通常是因为编码问题，使用手动解析
+        acutPrintf(_T("\n检测到编码问题，使用兼容性解析方法\n"));
+        return ParseJsonResponseManually(jsonData);
+    }
+    catch (const std::exception& e) {
+        acutPrintf(_T("\n解析JSON时发生异常: %s\n"), CStringToWString(CString(e.what())).c_str());
+        return ParseJsonResponseManually(jsonData);
+    }
+    catch (...) {
+        acutPrintf(_T("\n解析JSON时发生未知异常\n"));
+        return ParseJsonResponseManually(jsonData);
+    }
+
+    return fileList;
+}
+
+// 备用的手动JSON解析方法（改进版）
+std::vector<std::wstring> CTestDialog::ParseJsonResponseManually(const std::string& jsonData)
+{
+    std::vector<std::wstring> fileList;
+
+    try {
+        acutPrintf(_T("\n使用手动方式解析JSON\n"));
+        
+        // 查找 files 数组
+        size_t filesPos = jsonData.find("\"files\"");
+        if (filesPos == std::string::npos) {
+            acutPrintf(_T("\n未找到 files 字段\n"));
+            return fileList;
+        }
+
+        // 查找 files 数组的开始位置
+        size_t arrayStart = jsonData.find("[", filesPos);
+        if (arrayStart == std::string::npos) {
+            acutPrintf(_T("\n未找到 files 数组开始标记\n"));
+            return fileList;
+        }
+
+        // 查找 files 数组的结束位置
+        size_t arrayEnd = jsonData.find("]", arrayStart);
+        if (arrayEnd == std::string::npos) {
+            acutPrintf(_T("\n未找到 files 数组结束标记\n"));
+            return fileList;
+        }
+
+        // 提取 files 数组内容
+        std::string filesArray = jsonData.substr(arrayStart + 1, arrayEnd - arrayStart - 1);
+
+        // 解析每个文件对象
+        size_t pos = 0;
+        while (pos < filesArray.length()) {
+            // 查找下一个 filename 字段
+            size_t filenamePos = filesArray.find("\"filename\"", pos);
+            if (filenamePos == std::string::npos) break;
+
+            // 查找 filename 的值
+            size_t colonPos = filesArray.find(":", filenamePos);
+            if (colonPos == std::string::npos) break;
+
+            // 查找引号开始位置
+            size_t quoteStart = filesArray.find("\"", colonPos);
+            if (quoteStart == std::string::npos) break;
+
+            // 查找引号结束位置（需要处理转义字符）
+            size_t quoteEnd = quoteStart + 1;
+            while (quoteEnd < filesArray.length()) {
+                if (filesArray[quoteEnd] == '\"' && filesArray[quoteEnd - 1] != '\\') {
+                    break;
+                }
+                quoteEnd++;
+            }
+
+            if (quoteEnd >= filesArray.length()) break;
+
+            // 提取文件名
+            std::string filenameUtf8 = filesArray.substr(quoteStart + 1, quoteEnd - quoteStart - 1);
+            if (!filenameUtf8.empty()) {
+                // 处理JSON转义字符
+                filenameUtf8 = UnescapeJsonString(filenameUtf8);
+                
+                // 转换为宽字符
+                std::wstring filename = Utf8ToWString(filenameUtf8);
+                if (!filename.empty()) {
+                    fileList.push_back(filename);
+                    acutPrintf(_T("\n手动解析到文件名: %s\n"), filename.c_str());
+                }
+            }
+
+            pos = quoteEnd + 1;
+        }
+
+        acutPrintf(_T("\n手动解析完成，共解析到 %d 个文件\n"), (int)fileList.size());
+
+    }
+    catch (const std::exception& e) {
+        acutPrintf(_T("\n手动解析JSON时发生异常: %s\n"), CStringToWString(CString(e.what())).c_str());
+    }
+    catch (...) {
+        acutPrintf(_T("\n手动解析JSON时发生未知异常\n"));
+    }
+
+    return fileList;
+}
+
+// 新增：GBK转宽字符的方法
+std::wstring CTestDialog::GbkToWString(const std::string& gbkStr)
+{
+    if (gbkStr.empty()) {
+        return std::wstring();
+    }
+    
+    try {
+        // 使用GBK代码页（936）进行转换
+        int wideSize = MultiByteToWideChar(936, 0, gbkStr.c_str(), -1, NULL, 0);
+        if (wideSize <= 0) {
+            return std::wstring();
+        }
+        
+        std::vector<wchar_t> wideBuffer(wideSize);
+        int result = MultiByteToWideChar(936, 0, gbkStr.c_str(), -1, &wideBuffer[0], wideSize);
+        if (result <= 0) {
+            return std::wstring();
+        }
+        
+        return std::wstring(&wideBuffer[0]);
+    }
+    catch (...) {
+        return std::wstring();
+    }
+}
+
+// 新增：处理JSON转义字符的方法
+std::string CTestDialog::UnescapeJsonString(const std::string& jsonStr)
+{
+    std::string result;
+    result.reserve(jsonStr.length());
+    
+    for (size_t i = 0; i < jsonStr.length(); ++i) {
+        if (jsonStr[i] == '\\' && i + 1 < jsonStr.length()) {
+            switch (jsonStr[i + 1]) {
+                case '\"': result += '\"'; i++; break;
+                case '\\': result += '\\'; i++; break;
+                case '/': result += '/'; i++; break;
+                case 'b': result += '\b'; i++; break;
+                case 'f': result += '\f'; i++; break;
+                case 'n': result += '\n'; i++; break;
+                case 'r': result += '\r'; i++; break;
+                case 't': result += '\t'; i++; break;
+                case 'u':
+                    // 处理Unicode转义序列 \uXXXX
+                    if (i + 5 < jsonStr.length()) {
+                        std::string hexStr = jsonStr.substr(i + 2, 4);
+                        try {
+                            unsigned int codePoint = std::stoul(hexStr, nullptr, 16);
+                            // 简单处理，只处理ASCII范围
+                            if (codePoint < 128) {
+                                result += static_cast<char>(codePoint);
+                            } else {
+                                result += jsonStr.substr(i, 6); // 保持原样
+                            }
+                            i += 5;
+                        } catch (...) {
+                            result += jsonStr[i]; // 保持原样
+                        }
+                    } else {
+                        result += jsonStr[i];
+                    }
+                    break;
+                default:
+                    result += jsonStr[i];
+                    break;
+            }
+        } else {
+            result += jsonStr[i];
+        }
+    }
+    
+    return result;
 }
 
 bool CTestDialog::DownloadDrawingIfNeeded(const std::wstring& serverFileName)
