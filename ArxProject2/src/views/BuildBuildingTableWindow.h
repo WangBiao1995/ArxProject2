@@ -59,17 +59,20 @@ public:
 protected:
     virtual void DoDataExchange(CDataExchange *pDX);
     virtual BOOL OnInitDialog();
-    virtual BOOL PreTranslateMessage(MSG* pMsg);  // 添加这行
+    virtual void OnOK();  // 新增：重写OnOK方法
+    virtual void OnCancel();  // 新增：重写OnCancel方法
+    virtual BOOL PreTranslateMessage(MSG* pMsg);
     afx_msg LRESULT OnAcadKeepFocus(WPARAM, LPARAM);
     afx_msg void OnBnClickedFilterButton();
     afx_msg void OnBnClickedResetFilterButton();
-    afx_msg void OnBnClickedSaveButton();
+    // 移除：afx_msg void OnBnClickedSaveButton();  // 删除保存按钮处理方法
     afx_msg void OnNMRClickBuildingTable(NMHDR *pNMHDR, LRESULT *pResult);
     afx_msg void OnLvnEndlabeleditBuildingTable(NMHDR *pNMHDR, LRESULT *pResult);
     afx_msg void OnNMDblclkBuildingTable(NMHDR *pNMHDR, LRESULT *pResult);
     afx_msg void OnLvnKeydownBuildingTable(NMHDR *pNMHDR, LRESULT *pResult);
-    afx_msg void OnLvnItemchangedBuildingTable(NMHDR *pNMHDR, LRESULT *pResult);  // 添加这行
+    afx_msg void OnLvnItemchangedBuildingTable(NMHDR *pNMHDR, LRESULT *pResult);
     afx_msg void OnSize(UINT nType, int cx, int cy);
+    afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
 
     DECLARE_MESSAGE_MAP()
 
@@ -90,6 +93,11 @@ private:
     // 数据管理
     std::vector<BuildingData> m_buildingDataList;
     
+    // 常量定义（参照SheetListWindow）
+    static const int MIN_WIDTH = 600;   // 最小宽度
+    static const int MIN_HEIGHT = 300;  // 最小高度
+    static const int BUTTON_HEIGHT = 25; // 按钮高度
+    
     // 私有方法
     void initializeControls();
     void setupTableColumns();
@@ -104,6 +112,7 @@ private:
     bool insertBuildingData(const BuildingData& data);
     void populateTableFromData();
     void resizeControls(int cx, int cy);
+    void resizeTableColumns();
     void adjustFilterControls(int cx);
     std::wstring getCurrentTimeString();
     

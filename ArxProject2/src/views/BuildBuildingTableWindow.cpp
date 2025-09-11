@@ -40,13 +40,13 @@ BEGIN_MESSAGE_MAP(BuildBuildingTableWindow, CAdUiBaseDialog)
     ON_MESSAGE(WM_ACAD_KEEPFOCUS, OnAcadKeepFocus)
     ON_BN_CLICKED(IDC_FILTER_BUTTON, &BuildBuildingTableWindow::OnBnClickedFilterButton)
     ON_BN_CLICKED(IDC_RESET_FILTER_BUTTON, &BuildBuildingTableWindow::OnBnClickedResetFilterButton)
-    ON_BN_CLICKED(IDC_SAVE_BUTTON, &BuildBuildingTableWindow::OnBnClickedSaveButton)
     ON_NOTIFY(NM_RCLICK, IDC_BUILDING_TABLE, &BuildBuildingTableWindow::OnNMRClickBuildingTable)
     ON_NOTIFY(LVN_ENDLABELEDIT, IDC_BUILDING_TABLE, &BuildBuildingTableWindow::OnLvnEndlabeleditBuildingTable)
     ON_NOTIFY(NM_DBLCLK, IDC_BUILDING_TABLE, &BuildBuildingTableWindow::OnNMDblclkBuildingTable)      // 添加双击消息
     ON_NOTIFY(LVN_KEYDOWN, IDC_BUILDING_TABLE, &BuildBuildingTableWindow::OnLvnKeydownBuildingTable)  // 添加按键消息
     ON_NOTIFY(LVN_ITEMCHANGED, IDC_BUILDING_TABLE, &BuildBuildingTableWindow::OnLvnItemchangedBuildingTable)  // 添加这行
     ON_WM_SIZE()
+    ON_WM_GETMINMAXINFO()  // 新增：添加最小窗口尺寸限制消息映射
 END_MESSAGE_MAP()
 
 BuildBuildingTableWindow::BuildBuildingTableWindow(CWnd *pParent /*=NULL*/, HINSTANCE hInstance /*=NULL*/) 
@@ -91,7 +91,7 @@ BOOL BuildBuildingTableWindow::OnInitDialog()
     
    
     // 窗口最大化显示
-    ShowWindow(SW_SHOWMAXIMIZED);
+    //ShowWindow(SW_SHOWMAXIMIZED);
     
     return TRUE;
 }
@@ -138,18 +138,59 @@ void BuildBuildingTableWindow::setupTableColumns()
     }
     
     // 清除现有列
-		while (pHeader->GetItemCount() > 0) {
-			m_buildingTable.DeleteColumn(0);
-		}
+    while (pHeader->GetItemCount() > 0) {
+        m_buildingTable.DeleteColumn(0);
+    }
 
-    // 添加列，调整列宽以适应600像素宽度的窗口
-    m_buildingTable.InsertColumn(0, _T("大楼名称"), LVCFMT_LEFT, 90);
-    m_buildingTable.InsertColumn(1, _T("地址"), LVCFMT_LEFT, 120);
-    m_buildingTable.InsertColumn(2, _T("总面积"), LVCFMT_LEFT, 70);
-    m_buildingTable.InsertColumn(3, _T("层数"), LVCFMT_LEFT, 50);
-    m_buildingTable.InsertColumn(4, _T("设计单位"), LVCFMT_LEFT, 100);
-    m_buildingTable.InsertColumn(5, _T("创建时间"), LVCFMT_LEFT, 80);
-    m_buildingTable.InsertColumn(6, _T("创建人"), LVCFMT_LEFT, 60);
+    // 获取表格客户区宽度用于按权重分配列宽
+    CRect clientRect;
+    m_buildingTable.GetClientRect(&clientRect);
+    int totalWidth = clientRect.Width() - 30; // 减少边距，确保有足够空间
+    
+    // 如果窗口最大化，使用更精确的宽度计算
+    if (IsZoomed()) {
+        CRect windowRect;
+        GetWindowRect(&windowRect);
+        // 使用窗口实际宽度减去边框和滚动条
+        totalWidth = windowRect.Width() - 60; // 减去窗口边框、滚动条等
+    }
+    
+    // 根据内容长度重新调整权重分配
+    struct ColumnInfo {
+        LPCTSTR title;
+        int weight;
+        int format;
+    };
+    
+    ColumnInfo columns[] = {
+        { _T("大楼名称"), 18, LVCFMT_LEFT },   // 18% - 大楼名称通常较长，如"A座办公楼"、"北京国际贸易中心"
+        { _T("地址"), 25, LVCFMT_LEFT },       // 25% - 地址最长，如"北京市朝阳区建国门外大街1号"
+        { _T("总面积"), 10, LVCFMT_LEFT },     // 10% - 数字+单位，如"10000㎡"
+        { _T("层数"), 8, LVCFMT_LEFT },        // 8% - 简短数字，如"20层"
+        { _T("设计单位"), 20, LVCFMT_LEFT },   // 20% - 单位名称较长，如"中国建筑设计研究院"
+        { _T("创建时间"), 12, LVCFMT_LEFT },   // 12% - 日期格式，如"2024-01-15"
+        { _T("创建人"), 7, LVCFMT_LEFT }       // 7% - 人名最短，如"张三"、"李四"
+    };
+    
+    // 插入列并按权重设置宽度
+    for (int i = 0; i < 7; i++) {
+        int columnWidth = (totalWidth * columns[i].weight) / 100;
+        // 设置最小列宽，确保内容可读
+        int minWidth;
+        switch (i) {
+            case 0: minWidth = 80;  break;  // 大楼名称最小80
+            case 1: minWidth = 100; break;  // 地址最小100
+            case 2: minWidth = 60;  break;  // 总面积最小60
+            case 3: minWidth = 40;  break;  // 层数最小40
+            case 4: minWidth = 90;  break;  // 设计单位最小90
+            case 5: minWidth = 70;  break;  // 创建时间最小70
+            case 6: minWidth = 50;  break;  // 创建人最小50
+            default: minWidth = 50; break;
+        }
+        
+        if (columnWidth < minWidth) columnWidth = minWidth;
+        m_buildingTable.InsertColumn(i, columns[i].title, columns[i].format, columnWidth);
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -542,9 +583,44 @@ void BuildBuildingTableWindow::OnBnClickedResetFilterButton()
     resetFilter();
 }
 
-void BuildBuildingTableWindow::OnBnClickedSaveButton()
+//-----------------------------------------------------------------------------
+// 重写OnOK方法，点击确定时自动保存数据
+void BuildBuildingTableWindow::OnOK()
 {
+    // 如果正在编辑，先结束编辑
+    if (m_pEditCtrl) {
+        endEdit(true);
+    }
+    
+    // 自动保存数据到数据库
     saveDataToDatabase();
+    
+    // 关闭对话框
+    CAdUiBaseDialog::OnOK();
+}
+
+//-----------------------------------------------------------------------------
+// 重写OnCancel方法，取消时不保存数据
+void BuildBuildingTableWindow::OnCancel()
+{
+    // 如果正在编辑，取消编辑
+    if (m_pEditCtrl) {
+        endEdit(false);
+    }
+    
+    // 询问是否要保存更改
+    if (!m_buildingDataList.empty()) {
+        int result = AfxMessageBox(_T("是否要保存更改？"), MB_YESNOCANCEL | MB_ICONQUESTION);
+        if (result == IDYES) {
+            saveDataToDatabase();
+            CAdUiBaseDialog::OnOK();  // 保存后正常关闭
+        } else if (result == IDNO) {
+            CAdUiBaseDialog::OnCancel();  // 不保存直接关闭
+        }
+        // IDCANCEL 不做任何操作，继续停留在对话框
+    } else {
+        CAdUiBaseDialog::OnCancel();
+    }
 }
 
 void BuildBuildingTableWindow::OnNMRClickBuildingTable(NMHDR *pNMHDR, LRESULT *pResult)
@@ -639,9 +715,18 @@ void BuildBuildingTableWindow::OnSize(UINT nType, int cx, int cy)
 {
     CAdUiBaseDialog::OnSize(nType, cx, cy);
     
-    if (nType != SIZE_MINIMIZED) {
+    if (nType != SIZE_MINIMIZED) {  // 修改：只有在非最小化时才调整控件
         resizeControls(cx, cy);
     }
+}
+
+// 新增：添加最小窗口尺寸限制
+void BuildBuildingTableWindow::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
+{
+    lpMMI->ptMinTrackSize.x = MIN_WIDTH;
+    lpMMI->ptMinTrackSize.y = MIN_HEIGHT;
+    
+    CAdUiBaseDialog::OnGetMinMaxInfo(lpMMI);
 }
 
 // 使用常量来确保一致性
@@ -651,53 +736,53 @@ void BuildBuildingTableWindow::resizeControls(int cx, int cy)
         return;
     }
     
-    // 设置最小窗口尺寸
-    if (cx < 500) cx = 500;
-    if (cy < 350) cy = 350;
+    // 设置最小窗口尺寸（使用常量）
+    if (cx < MIN_WIDTH) cx = MIN_WIDTH;
+    if (cy < MIN_HEIGHT) cy = MIN_HEIGHT;
     
-    // 调整表格大小 - 为底部按钮留出足够空间
+    // 调整表格大小 - 减少底部空间，让布局更紧凑
     CRect tableRect;
     m_buildingTable.GetWindowRect(&tableRect);
     ScreenToClient(&tableRect);
     
     tableRect.right = cx - 15;
-    tableRect.bottom = cy - 45;  // 为10像素底部距离 + 25像素按钮高度 + 10像素缓冲
+    tableRect.bottom = cy - 40;  // 从45减少到40，减少5像素的缓冲空间
     m_buildingTable.MoveWindow(&tableRect);
     
-    // 调整底部按钮位置 - 距离底部10像素，按钮高度25像素
-    CWnd* pSaveBtn = GetDlgItem(IDC_SAVE_BUTTON);
+    // 重新计算列宽度（新增）
+    resizeTableColumns();
+    
+    // 调整底部按钮位置 - 只处理确定和取消按钮
     CWnd* pOKBtn = GetDlgItem(IDOK);
     CWnd* pCancelBtn = GetDlgItem(IDCANCEL);
     
-    if (pSaveBtn && pOKBtn && pCancelBtn) {
-        // 获取按钮的原始宽度，但设置固定高度为25像素
-        CRect saveRect;
-        pSaveBtn->GetWindowRect(&saveRect);
-        ScreenToClient(&saveRect);
+    if (pOKBtn && pCancelBtn) {
+        // 获取按钮的原始宽度，但设置固定高度
+        CRect okRect;
+        pOKBtn->GetWindowRect(&okRect);
+        ScreenToClient(&okRect);
         
-        int buttonWidth = saveRect.Width();   // 使用原始宽度
-        int buttonHeight = 25;                // 固定高度为25像素
+        int buttonWidth = okRect.Width();     // 使用原始宽度
+        int buttonHeight = BUTTON_HEIGHT;     // 使用常量高度
         int buttonSpacing = 10;               // 按钮间距
         
-        // 计算按钮Y坐标：窗口高度 - 10像素底部距离 - 25像素按钮高度
-        int buttonY = cy - 10 - buttonHeight;
+        // 计算按钮Y坐标：窗口高度 - 8像素底部距离 - 按钮高度
+        int buttonY = cy - 8 - buttonHeight;
         
-        // 从右到左排列按钮
+        // 从右到左排列按钮（只有确定和取消）
         int cancelX = cx - 15 - buttonWidth;  // 取消按钮（最右）
         int okX = cancelX - buttonWidth - buttonSpacing;  // 确定按钮
-        int saveX = okX - buttonWidth - buttonSpacing;    // 保存按钮（最左）
         
-        // 移动按钮到新位置，设置固定高度25像素
+        // 移动按钮到新位置，设置固定高度
         pCancelBtn->MoveWindow(cancelX, buttonY, buttonWidth, buttonHeight);
         pOKBtn->MoveWindow(okX, buttonY, buttonWidth, buttonHeight);
-        pSaveBtn->MoveWindow(saveX, buttonY, buttonWidth, buttonHeight);
     }
     
     // 调整筛选区域的控件位置
     adjustFilterControls(cx);
 }
 
-// 修改 adjustFilterControls() 方法，让筛选、重置按钮靠近日期输入框
+// 修改 adjustFilterControls() 方法，使用常量高度
 void BuildBuildingTableWindow::adjustFilterControls(int cx)
 {
     // 调整筛选组框的宽度
@@ -729,7 +814,7 @@ void BuildBuildingTableWindow::adjustFilterControls(int cx)
         ScreenToClient(&resetRect);
         
         int buttonWidth = filterRect.Width();   // 保持原始宽度
-        int buttonHeight = filterRect.Height(); // 保持原始高度
+        int buttonHeight = BUTTON_HEIGHT;       // 使用常量高度
         int buttonY = filterRect.top;           // 保持原始Y坐标
         int buttonSpacing = 8;                  // 按钮间的间距
         int gapFromTimePicker = 15;             // 与日期选择器的间距
@@ -738,7 +823,7 @@ void BuildBuildingTableWindow::adjustFilterControls(int cx)
         int filterX = timePickerRect.right + gapFromTimePicker;
         int resetX = filterX + buttonWidth + buttonSpacing;
         
-        // 移动按钮到新位置
+        // 移动按钮到新位置，使用常量高度
         pFilterBtn->MoveWindow(filterX, buttonY, buttonWidth, buttonHeight);
         pResetBtn->MoveWindow(resetX, buttonY, buttonWidth, buttonHeight);
     }
@@ -874,5 +959,43 @@ BOOL BuildBuildingTableWindow::PreTranslateMessage(MSG* pMsg)
     }
     
     return CAdUiBaseDialog::PreTranslateMessage(pMsg);
+}
+
+// 新增方法：重新计算表格列宽度
+void BuildBuildingTableWindow::resizeTableColumns()
+{
+    CRect clientRect;
+    m_buildingTable.GetClientRect(&clientRect);
+    int totalWidth = clientRect.Width() - 30; // 减少边距
+    
+    // 如果窗口最大化，使用更精确的宽度计算
+    if (IsZoomed()) {
+        CRect windowRect;
+        GetWindowRect(&windowRect);
+        totalWidth = windowRect.Width() - 60;
+    }
+    
+    // 权重数组（与setupTableColumns中保持一致）
+    int weights[] = { 18, 25, 10, 8, 20, 12, 7 };
+    
+    // 重新设置各列宽度
+    for (int i = 0; i < 7; i++) {
+        int columnWidth = (totalWidth * weights[i]) / 100;
+        // 设置最小列宽
+        int minWidth;
+        switch (i) {
+            case 0: minWidth = 80;  break;  // 大楼名称
+            case 1: minWidth = 100; break;  // 地址
+            case 2: minWidth = 60;  break;  // 总面积
+            case 3: minWidth = 40;  break;  // 层数
+            case 4: minWidth = 90;  break;  // 设计单位
+            case 5: minWidth = 70;  break;  // 创建时间
+            case 6: minWidth = 50;  break;  // 创建人
+            default: minWidth = 50; break;
+        }
+        
+        if (columnWidth < minWidth) columnWidth = minWidth;
+        m_buildingTable.SetColumnWidth(i, columnWidth);
+    }
 }
 
