@@ -9,6 +9,9 @@
 #include <sql.h>
 #include <sqlext.h>
 
+// 前向声明
+struct TextSearchResult;
+
 // 重命名为DbSheetData避免冲突
 struct DbSheetData {
     int id;
@@ -63,6 +66,16 @@ public:
     static bool removeFieldFromTable(const std::wstring& tableName, const std::wstring& fieldName);
     static bool fieldExists(const std::wstring& tableName, const std::wstring& fieldName);
     static std::vector<std::wstring> getTableFields(const std::wstring& tableName);
+   
+    // 批量插入方法
+    static bool executeBatchInsert(const std::wstring& tableName, 
+                                  const std::vector<std::wstring>& columns,
+                                  const std::vector<std::vector<std::wstring>>& values,
+                                  std::wstring& errorMsg);
+
+    // 专门用于文本索引的批量插入
+    static bool batchInsertTextIndex(const std::vector<TextSearchResult>& textList, 
+                                    std::wstring& errorMsg);
    
 private:
     static SQLHENV m_hEnv;      // 环境句柄

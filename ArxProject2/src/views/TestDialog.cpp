@@ -510,9 +510,7 @@ void CTestDialog::SearchDrawings()
 
 void CTestDialog::UpdateDrawingTreeWithSearchResults(const std::vector<TextSearchResult>& results)
 {
-    // 清空当前树形控件
-    ClearSearchResults();
-    
+
     if (results.empty()) {
         return;
     }
@@ -643,15 +641,29 @@ void CTestDialog::OpenDrawingAndLocateText(const std::wstring& filePath, const T
     acutPrintf(_T("实体句柄: %s\n"), WStringToCString(textResult.entityHandle));
     acutPrintf(_T("位置: %.3f, %.3f, %.3f\n"), textResult.posX, textResult.posY, textResult.posZ);
     
+    // 获取缓存目录路径
+    std::wstring cachePath = GetLocalFilePath(filePath);
+    if (cachePath.empty()) {
+        CString msg;
+        msg.Format(_T("无法获取图纸文件的缓存目录: %s"), WStringToCString(filePath));
+        MessageBox(msg, _T("路径错误"), MB_OK | MB_ICONWARNING);
+        return;
+    }
+    
+    
+    acutPrintf(_T("缓存目录: %s\n"), WStringToCString(cachePath));
+    acutPrintf(_T("文件名: %s\n"), WStringToCString(textResult.filePath));
+    acutPrintf(_T("完整路径: %s\n"), WStringToCString(cachePath));
+    
     std::wstring errorMsg;
     bool success = false;
     
     if (!textResult.entityHandle.empty()) {
         // 优先使用实体句柄定位
-        success = DwgViewerService::openDwgAndLocateText(filePath, textResult.entityHandle, errorMsg);
+        success = DwgViewerService::openDwgAndLocateText(cachePath, textResult.entityHandle, errorMsg);
     } else if (textResult.posX != 0.0 || textResult.posY != 0.0 || textResult.posZ != 0.0) {
         // 如果没有句柄，使用坐标定位
-        success = DwgViewerService::openDwgAndLocatePosition(filePath, textResult.posX, textResult.posY, textResult.posZ, errorMsg);
+        success = DwgViewerService::openDwgAndLocatePosition(cachePath, textResult.posX, textResult.posY, textResult.posZ, errorMsg);
     } else {
         errorMsg = L"没有可用的定位信息";
     }

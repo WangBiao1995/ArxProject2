@@ -1,9 +1,11 @@
 ﻿#include "StdAfx.h"
 #include "SqlDB.h"
 #include "../CadLogger.h"
+#include "../../services/SearchTextInDwg.h"  // 添加这一行来包含 TextSearchResult 的定义
 #include <vector>
 #include <sstream>
 #include <tchar.h>
+#include <algorithm>
 
 // 静态成员变量定义
 SQLHENV SqlDB::m_hEnv = SQL_NULL_HENV;
@@ -758,6 +760,134 @@ std::wstring SqlDB::getLastError()
     }
     
     return result;
+}
+
+// 字符串转义函数
+std::wstring escapeSqlString(const std::wstring& input)
+{
+    std::wstring result = input;
+    size_t pos = 0;
+    
+    // 转义单引号
+    while ((pos = result.find(L"'", pos)) != std::wstring::npos) {
+        result.replace(pos, 1, L"''");
+        pos += 2;
+    }
+    
+    return result;
+}
+
+// 添加批量插入方法
+bool SqlDB::executeBatchInsert(const std::wstring& tableName, 
+                              const std::vector<std::wstring>& columns,
+                              const std::vector<std::vector<std::wstring>>& values,
+                              std::wstring& errorMsg)
+{
+    if (values.empty() || columns.empty()) {
+        return true;
+    }
+    
+    try {
+        if (m_hDbc == SQL_NULL_HDBC) {
+            errorMsg = L"数据库未连接";
+            return false;
+        }
+        
+        // 构建批量插入SQL
+        std::wstring sql = L"INSERT INTO " + tableName + L" (";
+        
+        // 添加列名
+        for (size_t i = 0; i < columns.size(); ++i) {
+            if (i > 0) sql += L", ";
+            sql += columns[i];
+        }
+        sql += L") VALUES ";
+        
+        // 添加值（分批处理，每批1000条）
+        const size_t batchSize = 1000;
+        for (size_t start = 0; start < values.size(); start += batchSize) {
+          size_t end = (start + batchSize < values.size()) ? (start + batchSize) : values.size();
+            
+            std::wstring batchSql = sql;
+            for (size_t i = start; i < end; ++i) {
+                if (i > start) batchSql += L", ";
+                batchSql += L"(";
+                
+                for (size_t j = 0; j < values[i].size(); ++j) {
+                    if (j > 0) batchSql += L", ";
+                    // 检查是否是数字或特殊函数
+                    if (values[i][j] == L"NOW()") {
+                        batchSql += values[i][j];
+                    } else {
+                        batchSql += L"'" + escapeSqlString(values[i][j]) + L"'";
+                    }
+                }
+                batchSql += L")";
+            }
+            
+            // 添加冲突处理
+            batchSql += L" ON CONFLICT (file_path, entity_handle, text_content) DO UPDATE SET "
+                       L"layer_name = EXCLUDED.layer_name, "
+                       L"pos_x = EXCLUDED.pos_x, "
+                       L"pos_y = EXCLUDED.pos_y, "
+                       L"pos_z = EXCLUDED.pos_z, "
+                       L"last_modified = EXCLUDED.last_modified";
+            
+            if (!executeQuery(batchSql, errorMsg)) {
+                return false;
+            }
+            
+            acutPrintf(_T("已处理 %d/%d 条记录\n"), (int)end, (int)values.size());
+        }
+        
+        return true;
+        
+    } catch (...) {
+        errorMsg = L"批量插入时发生异常";
+        return false;
+    }
+}
+
+// 专门用于文本索引的批量插入
+bool SqlDB::batchInsertTextIndex(const std::vector<TextSearchResult>& textList, 
+                                std::wstring& errorMsg)
+{
+    if (textList.empty()) {
+        return true;
+    }
+    
+    acutPrintf(_T("开始批量插入 %d 条文本索引记录...\n"), (int)textList.size());
+    
+    std::vector<std::wstring> columns = {
+        L"file_path", L"text_content", L"layer_name", 
+        L"pos_x", L"pos_y", L"pos_z", L"entity_handle", L"last_modified"
+    };
+    
+    std::vector<std::vector<std::wstring>> values;
+    values.reserve(textList.size());
+    
+    for (const auto& result : textList) {
+        values.push_back({
+            result.filePath,
+            result.textContent,
+            result.layerName,
+            std::to_wstring(result.posX),
+            std::to_wstring(result.posY),
+            std::to_wstring(result.posZ),
+            result.entityHandle,
+            L"NOW()"
+        });
+    }
+    
+    bool success = executeBatchInsert(L"cad_text_index", columns, values, errorMsg);
+    
+    if (success) {
+        acutPrintf(_T("批量插入完成！\n"));
+    } else {
+        acutPrintf(_T("批量插入失败: %s\n"), errorMsg.c_str());
+    }
+    
+    return success;
 } 
 
 
