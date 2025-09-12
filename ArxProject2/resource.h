@@ -3,9 +3,7 @@
 // 供 ArxProject2.rc 使用
 //
 #define IDS_PROJNAME                    100
-
 #define IDD_DIALOG1                     102
-#define IDD_BuildBuildingTableWindow    1104  // 改为1104，避免冲突
 #define IDD_ManagerSystemLogin          106
 #define IDD_SheetListWindow             108
 #define IDC_TITLE_LABEL                 1001
@@ -51,6 +49,7 @@
 #define IDC_SHEET_RESET_FILTER_BUTTON   1041
 #define IDC_SHEET_UPLOAD_BUTTON         1042
 #define IDC_SHEET_TABLE                 1043
+#define IDD_BuildBuildingTableWindow    1104
 #define ID_CONTEXT_INSERT_ROW           32769
 #define ID_CONTEXT_DELETE_ROW           32770
 #define ID_CONTEXT_SELECT_FILE          32771
@@ -59,7 +58,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        110
+#define _APS_NEXT_RESOURCE_VALUE        112
 #define _APS_NEXT_COMMAND_VALUE         32772
 #define _APS_NEXT_CONTROL_VALUE         1044
 #define _APS_NEXT_SYMED_VALUE           106
