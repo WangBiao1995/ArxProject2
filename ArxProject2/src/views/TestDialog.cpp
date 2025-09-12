@@ -8,6 +8,8 @@
 #include <vector>
 #include <string>
 #include "nlohmann/json.hpp"
+#include "SetComponentLabel.h"
+#include <src/common/Interaction/SelectUtil.h>
 using json = nlohmann::json;
 
 #pragma comment(lib, "winhttp.lib") // 链接 WinHTTP 库
@@ -394,7 +396,47 @@ void CTestDialog::OnBnClickedImageMgmt()
 void CTestDialog::OnBnClickedComponentTagging()
 {
     acutPrintf(_T("\n启动构件打标签功能\n"));
-    // TODO: 实现构件打标签功能
+    
+    // 第一步：让用户选择需要打标签的构件（线段和块）
+    std::vector<AcRxClass*> allowedClasses;
+    allowedClasses.push_back(AcDbLine::desc());           // 线段
+    allowedClasses.push_back(AcDbBlockReference::desc()); // 块参照
+    allowedClasses.push_back(AcDbCircle::desc());         // 圆
+    allowedClasses.push_back(AcDbArc::desc());            // 圆弧
+    allowedClasses.push_back(AcDbPolyline::desc());       // 多段线
+    
+    AcDbObjectIdArray selectedEntities;
+    bool selectionResult = CSelectUtil::PromptSelectEnts(
+        _T("\n请选择需要打标签的构件（线段、块、圆等）: "), 
+        allowedClasses, 
+        selectedEntities
+    );
+    
+    if (!selectionResult || selectedEntities.length() == 0) {
+        acutPrintf(_T("\n未选择任何构件，操作取消\n"));
+        return;
+    }
+    
+    acutPrintf(_T("\n已选择 %d 个构件\n"), selectedEntities.length());
+    
+    // 第二步：弹出SetComponentLabel对话框让用户输入扩展数据
+    SetComponentLabel* pLabelDialog = new SetComponentLabel(this);
+    
+    // 将选中的实体传递给对话框
+    pLabelDialog->SetSelectedEntities(selectedEntities);
+    
+    // 显示模态对话框
+    INT_PTR result = pLabelDialog->DoModal();
+    
+    if (result == IDOK) {
+        acutPrintf(_T("\n构件打标签操作完成\n"));
+        acutPrintf(_T("维护日期：%s\n"), pLabelDialog->GetMaintenanceDate());
+        acutPrintf(_T("责任人：%s\n"), pLabelDialog->GetResponsiblePerson());
+    } else {
+        acutPrintf(_T("\n构件打标签操作已取消\n"));
+    }
+    
+    delete pLabelDialog;
 }
 
 void CTestDialog::OnBnClickedModifyUpload()
