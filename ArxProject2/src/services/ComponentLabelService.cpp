@@ -50,44 +50,54 @@ ComponentLabelResult ComponentLabelService::AddLabelsToEntities(
     
     acutPrintf(L"\n文档锁定成功");
     
+    // 获取当前数据库
+    AcDbDatabase* pDb = curDoc->database();
+    if (pDb == nullptr) {
+        acDocManager->unlockDocument(curDoc);
+        result.errorMessage = L"无法获取当前数据库";
+        return result;
+    }
+    
     // 创建完整的标签数据
     ComponentLabelData fullLabelData = labelData;
     fullLabelData.createTime = GetCurrentTimeString();
     fullLabelData.creator = GetCurrentUserName();
     
+    // 开始事务
+    AcDbTransactionManager* pTrans = acdbTransactionManagerPtr();
+    if (pTrans == nullptr) {
+        acDocManager->unlockDocument(curDoc);
+        result.errorMessage = L"无法获取事务管理器";
+        return result;
+    }
+    
+    AcTransaction* pTransaction = pTrans->startTransaction();
+    if (pTransaction == nullptr) {
+        acDocManager->unlockDocument(curDoc);
+        result.errorMessage = L"无法开始事务";
+        return result;
+    }
+    
+    acutPrintf(L"\n开始事务处理");
+    
     try {
-        // 步骤2和3：为每个实体处理
+        // 为每个实体处理
         for (int i = 0; i < result.totalCount; i++) {
             try {
-                // 获取ads_name
-                ads_name en;
-                if (acdbGetAdsName(en, entityIds[i]) != Acad::eOk) {
-                    acutPrintf(L"\n实体 %d：无法获取ads_name", i + 1);
-                    continue;
-                }
-                
-                // 通过ads_name重新获取ObjectId
-                AcDbObjectId objId;
-                if (acdbGetObjectId(objId, en) != Acad::eOk) {
-                    acutPrintf(L"\n实体 %d：无法重新获取ObjectId", i + 1);
-                    continue;
-                }
-                
-                // 打开对象（现在文档已经锁定）
+                // 在事务中打开对象
                 AcDbEntity* pEnt = nullptr;
-                Acad::ErrorStatus es = acdbOpenObject(pEnt, objId, AcDb::kForWrite);
+                Acad::ErrorStatus es = pTransaction->getObject((AcDbObject*&)pEnt, entityIds[i], AcDb::kForWrite);
                 
                 if (es != Acad::eOk) {
-                    acutPrintf(L"\n实体 %d：无法以写模式打开，错误代码: %d", i + 1, (int)es);
+                    acutPrintf(L"\n实体 %d：无法在事务中打开，错误代码: %d", i + 1, (int)es);
                     continue;
                 }
                 
-                // 检查实体类型
-								/*if (!IsEntityTypeSupported(objId)) {
-										pEnt->close();
-										acutPrintf(L"\n实体 %d：类型不支持", i + 1);
-										continue;
-								}*/
+                // 检查实体类型（可选）
+                /*if (!IsEntityTypeSupported(entityIds[i])) {
+                    acutPrintf(L"\n实体 %d：类型不支持", i + 1);
+                    continue;
+                }*/
                 
                 // 构造扩展数据
                 const TCHAR* maintenanceDate = fullLabelData.maintenanceDate.c_str();
@@ -118,24 +128,37 @@ ComponentLabelResult ComponentLabelService::AddLabelsToEntities(
                     acutPrintf(L"\n实体 %d：构造扩展数据失败", i + 1);
                 }
                 
-                pEnt->close();
-                
             } catch (...) {
                 acutPrintf(L"\n实体 %d：处理时发生异常", i + 1);
             }
         }
+        
+        // 提交事务
+        Acad::ErrorStatus commitStatus = pTrans->endTransaction();
+        if (commitStatus == Acad::eOk) {
+            acutPrintf(L"\n事务提交成功");
+            result.success = (result.successCount > 0);
+        } else {
+            acutPrintf(L"\n事务提交失败，错误代码: %d", (int)commitStatus);
+            result.errorMessage = L"事务提交失败";
+            result.success = false;
+            result.successCount = 0;
+        }
     }
     catch (...) {
-        acutPrintf(L"\n处理实体时发生异常");
+        acutPrintf(L"\n处理实体时发生异常，回滚事务");
+        // 回滚事务
+        pTrans->abortTransaction();
+        result.errorMessage = L"处理过程中发生异常，已回滚事务";
+        result.success = false;
+        result.successCount = 0;
     }
     
-    // 解锁文档
+    // 解锁文档（无论成功还是失败都要解锁）
     acDocManager->unlockDocument(curDoc);
     acutPrintf(L"\n文档解锁完成");
     
-    result.success = (result.successCount > 0);
-    
-    if (result.successCount < result.totalCount) {
+    if (result.success && result.successCount < result.totalCount) {
         wchar_t buffer[256];
         swprintf_s(buffer, 256, L"部分实体添加标签失败，成功: %d/%d", 
                   result.successCount, result.totalCount);

@@ -28,7 +28,8 @@ struct ComponentLabelResult
 };
 
 /// <summary>
-/// 给构件打标签，命令行输入(entget (car (entsel))) 可查看结果
+/// 给构件打标签，命令行输入(entget (car (entsel)) '("TSTArxProject2")) 可查看结果
+/// TSTArxProject2 是APPNAME
 /// </summary>
 class ComponentLabelService
 {
