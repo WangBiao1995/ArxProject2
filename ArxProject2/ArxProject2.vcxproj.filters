@@ -78,7 +78,16 @@
     <ClCompile Include="src\common\Geometry\MathUtil.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="src\common\Database\NetWorkSqlDb.cpp">
+    <ClCompile Include="src\views\SetComponentLabel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\services\ComponentLabelService.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\Interaction\SelectUtil.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\Geometry\GeRectangleUtil.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -146,7 +155,16 @@
     <ClInclude Include="src\common\Geometry\MathUtil.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="src\common\Database\NetWorkSqlDb.h">
+    <ClInclude Include="src\views\SetComponentLabel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\services\ComponentLabelService.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\Interaction\SelectUtil.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\Geometry\GeRectangleUtil.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

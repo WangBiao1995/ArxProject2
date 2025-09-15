@@ -20,52 +20,45 @@
 //
 
 //-----------------------------------------------------------------------------
-//----- ManagerSystemLogin.h : Declaration of the ManagerSystemLogin
+//----- SetComponentLabel.h : Declaration of the SetComponentLabel
 //-----------------------------------------------------------------------------
 #pragma once
 
 //-----------------------------------------------------------------------------
 #include "adui.h"
-#include "../../resource.h"
 
 //-----------------------------------------------------------------------------
-class ManagerSystemLogin : public CAdUiBaseDialog {
-	DECLARE_DYNAMIC(ManagerSystemLogin)
+//在CAD命令行使用(entget (car (entsel)))可查看扩展数据
+
+class SetComponentLabel : public CAdUiBaseDialog {
+	DECLARE_DYNAMIC (SetComponentLabel)
 
 public:
+	SetComponentLabel (CWnd *pParent =NULL, HINSTANCE hInstance =NULL) ;
+
+	enum { IDD = IDD_SETCOMPONENTLABEL} ;
+
+	// 设置选中的实体ID数组
+	void SetSelectedEntities(const AcDbObjectIdArray& entIds);
 	
-	ManagerSystemLogin(CWnd* pParent = NULL, HINSTANCE hInstance = NULL);
-	virtual ~ManagerSystemLogin();
-
-	enum { IDD = IDD_ManagerSystemLogin };
-
-	// 登录结果枚举
-	enum LoginResult {
-		LOGIN_SUCCESS = 1,
-		LOGIN_CANCELLED = 0,
-		LOGIN_FAILED = -1
-	};
+	// 获取输入的标签数据
+	CString GetMaintenanceDate() const { return m_strMaintenanceDate; }
+	CString GetResponsiblePerson() const { return m_strResponsiblePerson; }
 
 protected:
-	virtual void DoDataExchange(CDataExchange *pDX);
+	virtual void DoDataExchange (CDataExchange *pDX) ;
 	virtual BOOL OnInitDialog();
-	afx_msg LRESULT OnAcadKeepFocus(WPARAM, LPARAM);
-	afx_msg void OnLoginButtonClicked();
-	afx_msg void OnExitButtonClicked();
-	afx_msg void OnClose();
+	afx_msg LRESULT OnAcadKeepFocus (WPARAM, LPARAM) ;
+	afx_msg void OnBnClickedOk();
+	afx_msg void OnBnClickedCancel();
 
 	DECLARE_MESSAGE_MAP()
 
 private:
-
 	// 控件变量
-	CString m_strUsername;
-	CString m_strPassword;
+	CString m_strMaintenanceDate;  // 维护日期
+	CString m_strResponsiblePerson; // 责任人
 	
-	// 私有方法
-	void SetupControls();
-	BOOL ValidateLogin(const CString& username, const CString& password);
-	void ShowLoginMessage(const CString& message, UINT type = MB_ICONINFORMATION);
-public:
-	afx_msg void OnStnClickedLoginUsernameLabel();
-};
+	// 选中的实体ID数组
+	AcDbObjectIdArray m_selectedEntities;
+} ;

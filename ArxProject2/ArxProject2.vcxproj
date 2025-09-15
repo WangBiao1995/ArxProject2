@@ -14,6 +14,9 @@
     <ClCompile Include="acrxEntryPoint.cpp" />
     <ClCompile Include="ArxProject2.cpp" />
     <ClCompile Include="src\common\Database\NetWorkSqlDb.cpp" />
+    <ClCompile Include="src\common\Interaction\SelectUtil.cpp" />
+    <ClCompile Include="src\services\ComponentLabelService.cpp" />
+    <ClCompile Include="src\views\SetComponentLabel.cpp" />
     <ClCompile Include="src\common\Geometry\GePointUtil.cpp" />
     <ClCompile Include="src\common\SymbolTable\ViewUtil.cpp" />
     <ClCompile Include="src\views\BuildBuildingTableWindow.cpp" />
@@ -39,6 +42,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\common\Database\NetWorkSqlDb.h" />
+    <ClInclude Include="src\common\Geometry\GeRectangleUtil.h" />
+    <ClInclude Include="src\common\Interaction\SelectUtil.h" />
+    <ClInclude Include="src\services\ComponentLabelService.h" />
+    <ClInclude Include="src\views\SetComponentLabel.h" />
     <ClInclude Include="src\common\Geometry\GePointUtil.h" />
     <ClInclude Include="src\common\SymbolTable\ViewUtil.h" />
     <ClInclude Include="src\views\BuildBuildingTableWindow.h" />
