@@ -345,7 +345,7 @@ bool NetWorkSqlDb::createSheet(const SheetInfo& sheet, SheetInfo& result, std::w
         
         if (!isSuccessCode(response.code)) {
             errorMsg = response.msg;
-            return false;
+              return false;
         }
         
         result = jsonToSheet(response.data);
