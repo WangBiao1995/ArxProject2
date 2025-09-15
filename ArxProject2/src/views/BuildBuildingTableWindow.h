@@ -121,5 +121,9 @@ private:
     void endEdit(bool bSave);
     CEdit* createEditControl(int nItem, int nSubItem);
     
+    // 添加多行删除相关方法
+    void recursiveDelete(POSITION pos);
+    void deleteSelectedRows();
+    
    
 };
