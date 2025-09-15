@@ -30,6 +30,7 @@
 #include <sstream>
 #include <iomanip>
 #include <src/common/Database/NetWorkSqlDb.h>
+#include <set>
 
 //-----------------------------------------------------------------------------
 IMPLEMENT_DYNAMIC(BuildBuildingTableWindow, CAdUiBaseDialog)
@@ -217,7 +218,7 @@ void BuildBuildingTableWindow::loadDataFromDatabase()
     std::wstring errorMsg;
     
     // 执行查询
-    if (NetWorkSqlDb::getBuildings(buildings, 1, 1000, L"", L"", L"", L"", errorMsg)) {
+    if (NetWorkSqlDb::getBuildings(buildings, 1, 999999, L"", L"", L"", L"", errorMsg)) {
         // 处理查询结果
         for (const auto& building : buildings) {
             BuildingData data;
@@ -298,36 +299,74 @@ void BuildBuildingTableWindow::populateTableFromData()
 }
 
 //-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 void BuildBuildingTableWindow::saveDataToDatabase()
 {
-    // 使用网络数据库保存建筑信息
-    int successCount = 0;
-    
-    for (const auto& data : m_buildingDataList) {
-        BuildingInfo buildingInfo;
-        buildingInfo.building_name = data.buildingName;
-        buildingInfo.address = data.address;
-        buildingInfo.total_area = data.totalArea;
-        buildingInfo.floors = data.floors;
-        buildingInfo.design_unit = data.designUnit;
-        buildingInfo.create_time = data.createTime;
-        buildingInfo.creator = data.creator;
-        
-        BuildingInfo result;
-        std::wstring errorMsg;
-        if (NetWorkSqlDb::createBuilding(buildingInfo, result, errorMsg)) {
-            successCount++;
-        } else {
-            CadLogger::LogError(_T("Failed to save building data: %s"), errorMsg.c_str());
-        }
-    }
-    
-    CString msg;
-    msg.Format(_T("成功保存 %d/%d 条记录到网络数据库"), successCount, static_cast<int>(m_buildingDataList.size()));
-    AfxMessageBox(msg);
-    CadLogger::LogInfo(_T("Saved building data: %s"), msg);
-}
+	// 先获取服务器上的现有数据
+	std::vector<BuildingInfo> serverBuildings;
+	std::wstring errorMsg;
 
+	if (!NetWorkSqlDb::getBuildings(serverBuildings, 1, 999999, L"", L"", L"", L"", errorMsg)) {
+		CString errMsg(errorMsg.c_str());
+		AfxMessageBox(_T("无法获取服务器数据：") + errMsg);
+		CadLogger::LogError(_T("Failed to get server buildings: %s"), errMsg);
+		return;
+	}
+
+	// 创建服务器数据ID的集合，用于快速查找
+	std::set<int> serverIds;
+	for (const auto& building : serverBuildings) {
+		serverIds.insert(building.id);
+	}
+
+	// 找出本地新增的数据（ID不在服务器数据中的）
+	int newDataCount = 0;
+	int successCount = 0;
+
+	for (const auto& data : m_buildingDataList) {
+		// 如果本地数据的ID不在服务器ID集合中，说明是新增的
+		if (serverIds.find(data.id) == serverIds.end()) {
+			newDataCount++;
+
+			BuildingInfo buildingInfo;
+			buildingInfo.building_name = data.buildingName;
+			buildingInfo.address = data.address;
+			buildingInfo.total_area = data.totalArea;
+			buildingInfo.floors = data.floors;
+			buildingInfo.design_unit = data.designUnit;
+			buildingInfo.create_time = data.createTime;
+			buildingInfo.creator = data.creator;
+
+			BuildingInfo result;
+			std::wstring createErrorMsg;
+			if (NetWorkSqlDb::createBuilding(buildingInfo, result, createErrorMsg)) {
+				successCount++;
+				CadLogger::LogInfo(_T("成功上传新增建筑数据: %s (ID: %d)"), data.buildingName.c_str(), data.id);
+			}
+			else {
+				CString errMsg(createErrorMsg.c_str());
+				CadLogger::LogError(_T("上传新增建筑数据失败: %s, 错误: %s"), data.buildingName.c_str(), errMsg);
+			}
+		}
+	}
+
+	// 显示上传结果
+	CString msg;
+	if (newDataCount > 0) {
+		msg.Format(_T("成功上传 %d/%d 条新增记录到网络数据库"), successCount, newDataCount);
+		AfxMessageBox(msg);
+		CadLogger::LogInfo(_T("上传新增建筑数据: %s"), msg);
+
+		// 如果有成功上传的数据，重新加载数据以获取服务器分配的ID
+		if (successCount > 0) {
+			loadDataFromDatabase();
+		}
+	}
+	else {
+		msg = _T("没有新增数据需要上传");
+		CadLogger::LogInfo(_T("上传建筑数据: %s"), msg);
+	}
+}
 //-----------------------------------------------------------------------------
 bool BuildBuildingTableWindow::insertBuildingData(const BuildingData& data)
 {
@@ -507,20 +546,62 @@ void BuildBuildingTableWindow::deleteSelectedRows()
         // 从后往前删除，避免索引变化问题
         std::sort(selectedItems.begin(), selectedItems.end(), std::greater<int>());
         
+        int successCount = 0;
+        int failCount = 0;
+        std::vector<std::wstring> errorMessages;
+        
         for (int nItem : selectedItems) {
             // 获取数据ID
             DWORD_PTR dataId = m_buildingTable.GetItemData(nItem);
             
-            // 从内存数据中删除
-            auto it = std::find_if(m_buildingDataList.begin(), m_buildingDataList.end(),
-                [dataId](const BuildingData& data) { return data.id == static_cast<int>(dataId); });
+            // 从数据库删除
+            std::wstring errorMsg;
+            bool dbDeleteSuccess = false;
             
-            if (it != m_buildingDataList.end()) {
-                m_buildingDataList.erase(it);
+            if (dataId > 0) {
+                // 只有有效的数据库ID才执行删除操作
+                dbDeleteSuccess = NetWorkSqlDb::deleteBuilding(static_cast<int>(dataId), errorMsg);
+                if (!dbDeleteSuccess) {
+                    failCount++;
+                    errorMessages.push_back(errorMsg);
+                    CadLogger::LogError(_T("数据库删除失败 (ID: %d): %s"), static_cast<int>(dataId), errorMsg.c_str());
+                }
+            } else {
+                // 对于没有数据库ID的本地数据，直接标记为成功
+                dbDeleteSuccess = true;
+                CadLogger::LogInfo(_T("删除本地数据 (无数据库ID)"));
             }
             
-            // 从表格中删除
-            m_buildingTable.DeleteItem(nItem);
+            if (dbDeleteSuccess) {
+                // 从内存数据中删除
+                auto it = std::find_if(m_buildingDataList.begin(), m_buildingDataList.end(),
+                    [dataId](const BuildingData& data) { return data.id == static_cast<int>(dataId); });
+                
+                if (it != m_buildingDataList.end()) {
+                    m_buildingDataList.erase(it);
+                }
+                
+                // 从表格中删除
+                m_buildingTable.DeleteItem(nItem);
+                successCount++;
+            }
+        }
+        
+        // 显示删除结果
+        if (failCount == 0) {
+            CString successMsg;
+            successMsg.Format(_T("成功删除 %d 行数据"), successCount);
+            AfxMessageBox(successMsg);
+            CadLogger::LogInfo(_T("删除了 %d 行数据"), successCount);
+        } else {
+            CString resultMsg;
+            resultMsg.Format(_T("删除完成：成功 %d 行，失败 %d 行"), successCount, failCount);
+            AfxMessageBox(resultMsg);
+            
+            // 记录失败详情
+            for (const auto& errorMsg : errorMessages) {
+                CadLogger::LogError(_T("删除失败详情: %s"), errorMsg.c_str());
+            }
         }
         
         // 选中剩余的第一行
@@ -528,8 +609,6 @@ void BuildBuildingTableWindow::deleteSelectedRows()
         if (itemCount > 0) {
             m_buildingTable.SetItemState(0, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
         }
-        
-        CadLogger::LogInfo(_T("删除了 %d 行数据"), static_cast<int>(selectedItems.size()));
     }
 }
 

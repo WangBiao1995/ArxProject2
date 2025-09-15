@@ -737,7 +737,7 @@ bool SearchTextInDwg::cleanupOldPathData(std::wstring& errorMsg)
     
     // 获取所有文本索引记录
     std::vector<CadTextIndex> indexes;
-    if (!NetWorkSqlDb::getTextIndexes(indexes, 1, 10000, L"", L"", 0, L"", errorMsg)) {
+    if (!NetWorkSqlDb::getTextIndexes(indexes, 1, 999999, L"", L"", 0, L"", errorMsg)) {
         acutPrintf(_T("获取文本索引记录失败: %s\n"), errorMsg.c_str());
         return false;
     }

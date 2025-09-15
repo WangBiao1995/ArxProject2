@@ -1270,7 +1270,7 @@ void SheetListWindow::LoadDataFromDatabase()
 		std::vector<SheetInfo> sheetInfoList;
 		std::wstring errorMsg;
 		
-		if (!NetWorkSqlDb::getSheets(sheetInfoList, 1, 1000, L"", L"", L"", L"", L"", L"", 0, L"", errorMsg)) {
+		if (!NetWorkSqlDb::getSheets(sheetInfoList, 1, 999999, L"", L"", L"", L"", L"", L"", 0, L"", errorMsg)) {
 			CadLogger::LogError(_T("从网络数据库加载图纸数据失败: %s"), errorMsg.c_str());
 			// 如果加载失败，使用示例数据
 			PopulateTableData();

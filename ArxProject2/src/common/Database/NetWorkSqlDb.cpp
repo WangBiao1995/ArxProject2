@@ -99,7 +99,7 @@ bool NetWorkSqlDb::getBuildings(std::vector<BuildingInfo>& buildings,
     try {
         // 构建查询参数
         std::wstringstream params;
-        params << L"page=" << page << L"&page_size=" << pageSize;
+        params << L"page=" << page << L"&limit=" << pageSize;
         
         if (!search.empty()) {
             params << L"&search=" << urlEncode(search);
@@ -254,7 +254,7 @@ bool NetWorkSqlDb::getSheets(std::vector<SheetInfo>& sheets,
     try {
         // 构建查询参数
         std::wstringstream params;
-        params << L"page=" << page << L"&page_size=" << pageSize;
+        params << L"page=" << page << L"&limit=" << pageSize;
         
         if (!search.empty()) {
             params << L"&search=" << urlEncode(search);
@@ -477,7 +477,7 @@ bool NetWorkSqlDb::getTextIndexes(std::vector<CadTextIndex>& indexes,
     try {
         // 构建查询参数
         std::wstringstream params;
-        params << L"page=" << page << L"&page_size=" << pageSize;
+        params << L"page=" << page << L"&limit=" << pageSize;
         
         if (!search.empty()) {
             params << L"&search=" << urlEncode(search);
@@ -713,7 +713,7 @@ bool NetWorkSqlDb::batchInsertTextIndexes(const std::vector<TextSearchResult>& t
                 batchData.push_back(textIndexToJson(indexes[i]));
             }
             
-            std::wstring endpoint = L"/api/drawing/text-index/batch/";
+            std::wstring endpoint = L"/api/drawing/text-index/";
             ApiResponse response;
             if (!makeHttpRequest(L"POST", endpoint, batchData, response, errorMsg)) {
                 return false;

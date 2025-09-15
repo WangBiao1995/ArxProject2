@@ -93,7 +93,7 @@ public:
 
     // 建筑信息管理 (BuildingInfo)
     static bool getBuildings(std::vector<BuildingInfo>& buildings, 
-                            int page = 1, int pageSize = 10,
+                            int page = 1, int pageSize = 999999,
                             const std::wstring& search = L"",
                             const std::wstring& designUnit = L"",
                             const std::wstring& creator = L"",
@@ -107,7 +107,7 @@ public:
 
     // 图纸信息管理 (SheetInfo)
     static bool getSheets(std::vector<SheetInfo>& sheets,
-                         int page = 1, int pageSize = 10,
+                         int page = 1, int pageSize = 999999,
                          const std::wstring& search = L"",
                          const std::wstring& specialty = L"",
                          const std::wstring& format = L"",
@@ -127,7 +127,7 @@ public:
 
     // CAD文本索引管理 (CadTextIndex)
     static bool getTextIndexes(std::vector<CadTextIndex>& indexes,
-                              int page = 1, int pageSize = 10,
+                              int page = 1, int pageSize = 999999,
                               const std::wstring& search = L"",
                               const std::wstring& layerName = L"",
                               int sheet = 0,
