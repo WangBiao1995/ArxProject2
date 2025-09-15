@@ -8,6 +8,7 @@
 #include <vector>
 #include <string>
 #include "nlohmann/json.hpp"
+#include <src/common/Database/NetWorkSqlDb.h>
 using json = nlohmann::json;
 
 #pragma comment(lib, "winhttp.lib") // 链接 WinHTTP 库
@@ -129,38 +130,16 @@ BOOL CTestDialog::OnInitDialog()
 
 void CTestDialog::InitializeServices()
 {
-    // 初始化数据库连接
-    if (!SqlDB::isDatabaseOpen()) {
-        if (!SqlDB::initDatabase()) {
-            acutPrintf(_T("\n数据库连接失败，使用默认数据\n"));
-        }
+    // 初始化网络数据库连接
+    if (!NetWorkSqlDb::initialize(L"http://192.168.1.77:8000")) {
+        acutPrintf(_T("\n网络数据库连接失败，使用默认数据\n"));
     }
     
-    // 初始化文本搜索索引表
-    if (!SearchTextInDwg::createTextIndexTable()) {
-        acutPrintf(_T("\n创建文本索引表失败\n"));
-    }
+    // 注意：不再需要创建文本索引表，因为使用网络数据库
+    // 文本索引通过 NetWorkSqlDb::batchInsertTextIndexes 来管理
     
     // 初始化图纸文件管理器
     // m_pSheetFileManager = std::make_unique<SheetFileManager>(); // 已在构造函数中初始化
-    
-    // 设置回调函数
-    // if (m_pSheetFileManager) { // 已在构造函数中设置
-    //     m_pSheetFileManager->setUploadProgressCallback([this](const std::wstring& fileName, __int64 current, __int64 total) {
-    //         // 上传进度回调
-    //         double progress = (double)current / total * 100.0;
-    //         CString msg;
-    //         msg.Format(_T("上传进度: %s - %.1f%%"), WStringToCString(fileName), progress);
-    //         acutPrintf(_T("\n%s\n"), msg);
-    //     });
-        
-    //     m_pSheetFileManager->setUploadCompletedCallback([this](const std::wstring& fileName, bool success) {
-    //         // 上传完成回调
-    //         CString msg;
-    //         msg.Format(_T("上传%s: %s"), success ? _T("成功") : _T("失败"), WStringToCString(fileName));
-    //         acutPrintf(_T("\n%s\n"), msg);
-    //     });
-    // }
 }
 
 void CTestDialog::InitializeControls()
@@ -200,8 +179,12 @@ void CTestDialog::InitializeBuildingCombo()
 
 void CTestDialog::PopulateBuildingComboFromDatabase()
 {
-    if (!SqlDB::isDatabaseOpen()) {
-        // 如果数据库未连接，使用默认数据
+    // 使用网络数据库获取建筑列表
+    std::vector<BuildingInfo> buildings;
+    std::wstring errorMsg;
+    
+    if (!NetWorkSqlDb::getBuildings(buildings, 1, 100, L"", L"", L"", L"", errorMsg)) {
+        // 如果网络数据库连接失败，使用默认数据
         m_currentBuildingCombo.AddString(_T("A电力大楼"));
         m_currentBuildingCombo.AddString(_T("B办公大楼"));
         m_currentBuildingCombo.AddString(_T("C住宅楼"));
@@ -210,30 +193,22 @@ void CTestDialog::PopulateBuildingComboFromDatabase()
         return;
     }
     
-    // 从数据库查询大楼名称
-    std::wstring errorMsg;
-    if (SqlDB::loadSheetData(m_buildingData, errorMsg)) {
-        // 提取唯一的大楼名称
-        std::set<std::wstring> uniqueBuildings;
-        for (const auto& sheet : m_buildingData) {
-            if (!sheet.buildingName.empty()) {
-                uniqueBuildings.insert(sheet.buildingName);
-            }
+    // 清空下拉框
+    m_currentBuildingCombo.ResetContent();
+    
+    // 添加建筑名称到下拉框
+    for (const auto& building : buildings) {
+        if (!building.building_name.empty()) {
+            m_currentBuildingCombo.AddString(WStringToCString(building.building_name));
         }
-        
-        // 添加到下拉框
-        for (const auto& building : uniqueBuildings) {
-            m_currentBuildingCombo.AddString(WStringToCString(building));
-        }
-        
-        // 设置默认选择
-        if (!uniqueBuildings.empty()) {
-            m_currentBuildingCombo.SetCurSel(0);
-            m_nCurrentBuilding = 0;
-        }
+    }
+    
+    // 设置默认选择
+    if (!buildings.empty()) {
+        m_currentBuildingCombo.SetCurSel(0);
+        m_nCurrentBuilding = 0;
     } else {
-        acutPrintf(_T("\n加载大楼数据失败: %s\n"), WStringToCString(errorMsg));
-        // 使用默认数据
+        // 如果没有数据，使用默认数据
         m_currentBuildingCombo.AddString(_T("A电力大楼"));
         m_currentBuildingCombo.AddString(_T("B办公大楼"));
         m_currentBuildingCombo.AddString(_T("C住宅楼"));

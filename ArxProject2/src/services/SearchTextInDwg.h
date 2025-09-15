@@ -30,6 +30,8 @@ public:
     
     // 创建文本索引表
     static bool createTextIndexTable();
+
+    static bool batchInsertTextIndexes(const std::vector<TextSearchResult>& textList, std::wstring& errorMsg);
     
     // 为指定图纸建立文本索引
     static bool buildTextIndexForDrawing(const std::wstring& filePath, std::wstring& errorMsg);
@@ -87,5 +89,8 @@ private:
     // 从本地缓存路径获取服务器文件名
     static std::wstring getServerFileNameFromLocalPath(const std::wstring& localPath);
     static bool cleanupOldPathData(std::wstring& errorMsg);
+    
+    // 删除指定文件的文本索引
+    static bool deleteTextIndexForFile(const std::wstring& serverFileName, std::wstring& errorMsg);
 };
 

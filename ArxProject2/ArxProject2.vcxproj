@@ -13,6 +13,7 @@
   <ItemGroup>
     <ClCompile Include="acrxEntryPoint.cpp" />
     <ClCompile Include="ArxProject2.cpp" />
+    <ClCompile Include="src\common\Database\NetWorkSqlDb.cpp" />
     <ClCompile Include="src\common\Geometry\GePointUtil.cpp" />
     <ClCompile Include="src\common\SymbolTable\ViewUtil.cpp" />
     <ClCompile Include="src\views\BuildBuildingTableWindow.cpp" />
@@ -37,6 +38,7 @@
     <ClCompile Include="src\views\TestDialog.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\common\Database\NetWorkSqlDb.h" />
     <ClInclude Include="src\common\Geometry\GePointUtil.h" />
     <ClInclude Include="src\common\SymbolTable\ViewUtil.h" />
     <ClInclude Include="src\views\BuildBuildingTableWindow.h" />

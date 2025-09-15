@@ -29,6 +29,7 @@
 #include "../common/CadLogger.h"
 #include <sstream>
 #include <iomanip>
+#include <src/common/Database/NetWorkSqlDb.h>
 
 //-----------------------------------------------------------------------------
 IMPLEMENT_DYNAMIC(BuildBuildingTableWindow, CAdUiBaseDialog)
@@ -196,26 +197,8 @@ void BuildBuildingTableWindow::setupTableColumns()
 //-----------------------------------------------------------------------------
 bool BuildBuildingTableWindow::createBuildingTable()
 {
-    std::wstring sql = L"CREATE TABLE IF NOT EXISTS building_info ("
-        L"id SERIAL PRIMARY KEY, "
-        L"building_name VARCHAR(255) NOT NULL, "
-        L"address VARCHAR(500), "
-        L"total_area VARCHAR(100), "
-        L"floors VARCHAR(50), "
-        L"design_unit VARCHAR(255), "
-        L"create_time DATE DEFAULT CURRENT_DATE, "
-        L"creator VARCHAR(100) DEFAULT '系统用户', "
-        L"created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-        L")";
-    
-    std::wstring errorMsg;
-    if (!SqlDB::executeQuery(sql, errorMsg)) {
-        CString errMsg(errorMsg.c_str());
-        CadLogger::LogError(_T("Failed to create building_info table: %s"), errMsg);
-        return false;
-    }
-    
-    CadLogger::LogInfo(_T("Building info table created successfully or already exists"));
+    // 使用网络数据库时不需要创建表，表结构由服务器管理
+    CadLogger::LogInfo(_T("使用网络数据库，无需创建本地表"));
     return true;
 }
 
@@ -226,38 +209,32 @@ void BuildBuildingTableWindow::loadDataFromDatabase()
     m_buildingDataList.clear();
     m_buildingTable.DeleteAllItems();
     
-    // 查询数据库
-		std::wstring sql = L"SELECT id, building_name, address, total_area, floors, design_unit, "
-			L"TO_CHAR(create_time, 'YYYY-MM-DD') as create_time, creator "
-			L"FROM building_info ORDER BY created_at DESC";
-    
+    // 使用网络数据库查询建筑信息
+    std::vector<BuildingInfo> buildings;
     std::wstring errorMsg;
-    std::vector<std::vector<std::wstring>> results;
     
     // 执行查询
-    if (SqlDB::executeSelectQuery(sql, results, errorMsg)) {
+    if (NetWorkSqlDb::getBuildings(buildings, 1, 1000, L"", L"", L"", L"", errorMsg)) {
         // 处理查询结果
-        for (const auto& row : results) {
-            if (row.size() >= 8) {  // 确保有足够的列
-                BuildingData data;
-                data.id = _wtoi(row[0].c_str());
-                data.buildingName = row[1];
-                data.address = row[2];
-                data.totalArea = row[3];
-                data.floors = row[4];
-                data.designUnit = row[5];
-                data.createTime = row[6];
-                data.creator = row[7];
-                
-                m_buildingDataList.push_back(data);
-            }
+        for (const auto& building : buildings) {
+            BuildingData data;
+            data.id = building.id;
+            data.buildingName = building.building_name;
+            data.address = building.address;
+            data.totalArea = building.total_area;
+            data.floors = building.floors;
+            data.designUnit = building.design_unit;
+            data.createTime = building.create_time;
+            data.creator = building.creator;
+            
+            m_buildingDataList.push_back(data);
         }
         
-        CadLogger::LogInfo(_T("Loaded %d building records from database"), static_cast<int>(m_buildingDataList.size()));
+        CadLogger::LogInfo(_T("Loaded %d building records from network database"), static_cast<int>(m_buildingDataList.size()));
     } else {
         // 查询失败，记录错误并使用示例数据
         CString errMsg(errorMsg.c_str());
-        CadLogger::LogWarning(_T("Failed to load data from database: %s, using sample data"), errMsg);
+        CadLogger::LogWarning(_T("Failed to load data from network database: %s, using sample data"), errMsg);
         
         // 添加示例数据作为备用
         BuildingData sampleData1;
@@ -320,63 +297,30 @@ void BuildBuildingTableWindow::populateTableFromData()
 //-----------------------------------------------------------------------------
 void BuildBuildingTableWindow::saveDataToDatabase()
 {
-    // 先清空数据库中的旧数据
-    std::wstring clearSql = L"DELETE FROM building_info";
-    std::wstring errorMsg;
-    if (!SqlDB::executeQuery(clearSql, errorMsg)) {
-        CString errMsg(errorMsg.c_str());
-        CadLogger::LogError(_T("Failed to clear building data: %s"), errMsg);
-        AfxMessageBox(_T("保存失败：无法清空旧数据"));
-        return;
-    }
-    
-    // 从表格中读取数据并保存到数据库
-    int itemCount = m_buildingTable.GetItemCount();
+    // 使用网络数据库保存建筑信息
     int successCount = 0;
     
-    for (int i = 0; i < itemCount; ++i) {
-        BuildingData data;
+    for (const auto& data : m_buildingDataList) {
+        BuildingInfo buildingInfo;
+        buildingInfo.building_name = data.buildingName;
+        buildingInfo.address = data.address;
+        buildingInfo.total_area = data.totalArea;
+        buildingInfo.floors = data.floors;
+        buildingInfo.design_unit = data.designUnit;
+        buildingInfo.create_time = data.createTime;
+        buildingInfo.creator = data.creator;
         
-        // 从CString转换到wstring
-        CString temp;
-        temp = m_buildingTable.GetItemText(i, 0);
-        data.buildingName = std::wstring(temp);
-        
-        temp = m_buildingTable.GetItemText(i, 1);
-        data.address = std::wstring(temp);
-        
-        temp = m_buildingTable.GetItemText(i, 2);
-        data.totalArea = std::wstring(temp);
-        
-        temp = m_buildingTable.GetItemText(i, 3);
-        data.floors = std::wstring(temp);
-        
-        temp = m_buildingTable.GetItemText(i, 4);
-        data.designUnit = std::wstring(temp);
-        
-        temp = m_buildingTable.GetItemText(i, 5);
-        data.createTime = std::wstring(temp);
-        
-        temp = m_buildingTable.GetItemText(i, 6);
-        data.creator = std::wstring(temp);
-        
-        // 如果创建时间为空，设置当前时间
-        if (data.createTime.empty()) {
-            data.createTime = getCurrentTimeString();
-        }
-        
-        // 如果创建人为空，设置默认值
-        if (data.creator.empty()) {
-            data.creator = L"系统用户";
-        }
-        
-        if (insertBuildingData(data)) {
+        BuildingInfo result;
+        std::wstring errorMsg;
+        if (NetWorkSqlDb::createBuilding(buildingInfo, result, errorMsg)) {
             successCount++;
+        } else {
+            CadLogger::LogError(_T("Failed to save building data: %s"), errorMsg.c_str());
         }
     }
     
     CString msg;
-    msg.Format(_T("成功保存 %d/%d 条记录到数据库"), successCount, itemCount);
+    msg.Format(_T("成功保存 %d/%d 条记录到网络数据库"), successCount, static_cast<int>(m_buildingDataList.size()));
     AfxMessageBox(msg);
     CadLogger::LogInfo(_T("Saved building data: %s"), msg);
 }
@@ -384,18 +328,18 @@ void BuildBuildingTableWindow::saveDataToDatabase()
 //-----------------------------------------------------------------------------
 bool BuildBuildingTableWindow::insertBuildingData(const BuildingData& data)
 {
-    // 构建SQL语句，注意转义单引号
-    std::wstring sql = L"INSERT INTO building_info (building_name, address, total_area, floors, design_unit, create_time, creator) VALUES ('";
-    sql += data.buildingName + L"', '";
-    sql += data.address + L"', '";
-    sql += data.totalArea + L"', '";
-    sql += data.floors + L"', '";
-    sql += data.designUnit + L"', '";
-    sql += data.createTime + L"', '";
-    sql += data.creator + L"')";
+    BuildingInfo buildingInfo;
+    buildingInfo.building_name = data.buildingName;
+    buildingInfo.address = data.address;
+    buildingInfo.total_area = data.totalArea;
+    buildingInfo.floors = data.floors;
+    buildingInfo.design_unit = data.designUnit;
+    buildingInfo.create_time = data.createTime;
+    buildingInfo.creator = data.creator;
     
+    BuildingInfo result;
     std::wstring errorMsg;
-    if (!SqlDB::executeQuery(sql, errorMsg)) {
+    if (!NetWorkSqlDb::createBuilding(buildingInfo, result, errorMsg)) {
         CString errMsg(errorMsg.c_str());
         CadLogger::LogError(_T("Failed to insert building data: %s"), errMsg);
         return false;

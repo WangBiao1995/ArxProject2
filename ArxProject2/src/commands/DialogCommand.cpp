@@ -9,6 +9,7 @@
 #include "../views/ManagerSystemLogin.h"
 #include "../views/TestDialog.h"
 #include "../common/CadLogger.h"
+#include "../common/Database/NetWorkSqlDb.h"  // 替换 SqlDB.h
 
 DialogCommand::DialogCommand()
     : m_loginDialog(nullptr)
@@ -31,9 +32,9 @@ DialogCommand::~DialogCommand()
 
 void DialogCommand::Init()
 {
-    // 初始化数据库连接
-    if (!SqlDB::initDatabase()) {
-        acutPrintf(_T("数据库初始化失败，但插件仍可正常使用!"));
+    // 初始化网络数据库连接
+    if (!NetWorkSqlDb::initialize(L"http://192.168.1.77:8000")) {
+        acutPrintf(_T("网络数据库初始化失败，但插件仍可正常使用!"));
     }
     
     // 注册DialogCommand的静态方法
@@ -57,8 +58,8 @@ void DialogCommand::Init()
 
 void DialogCommand::UnLoad()
 {
-    // 关闭数据库连接
-    SqlDB::closeDatabase();
+    // 网络数据库不需要显式关闭连接
+    // NetWorkSqlDb 使用静态连接，程序结束时自动清理
 }
 
 bool DialogCommand::showLoginDialog()
@@ -257,13 +258,13 @@ void DialogCommand::executeCommand()
             return;
         }
         
-        // 测试数据库连接
-        if (SqlDB::testDatabaseConnection()) {
-            acutPrintf(_T("\nDatabase connection is normal!\n"));
-            // CadLogger::LogInfo(_T("数据库连接正常!"));
+        // 测试网络数据库连接 - 通过获取建筑列表来测试
+        std::vector<BuildingInfo> buildings;
+        std::wstring errorMsg;
+        if (NetWorkSqlDb::getBuildings(buildings, 1, 1, L"", L"", L"", L"", errorMsg)) {
+            acutPrintf(_T("\n网络数据库连接正常!\n"));
         } else {
-            acutPrintf(_T("\nDatabase connection failed, but plugin can still work normally!\n"));
-            // CadLogger::LogWarning(_T("数据库连接失败，但插件仍可正常使用!"));
+            acutPrintf(_T("\n网络数据库连接失败，但插件仍可正常使用!\n"));
         }
         
         g_dialogCommandInstance->showMainDialog();
@@ -273,159 +274,6 @@ void DialogCommand::executeCommand()
     }
 } 
 
-// 执行测试数据命令
-void DialogCommand::executeTestDataCommand()
-{
-    try {
-        CadLogger::LogInfo(_T("=== 开始执行测试数据操作 ==="));
-        
-        // 测试数据库连接
-        if (!SqlDB::testDatabaseConnection()) {
-            CadLogger::LogError(_T("数据库连接失败，无法执行测试数据操作!"));
-            return;
-        }
-        
-        // 创建测试表
-        if (SqlDB::createTestTables()) {
-            CadLogger::LogInfo(_T("测试表创建成功!"));
-        } else {
-            CadLogger::LogError(_T("测试表创建失败!"));
-            return;
-        }
-        
-        // 插入测试数据
-        if (SqlDB::insertTestData()) {
-            CadLogger::LogInfo(_T("测试数据插入成功!"));
-        } else {
-            CadLogger::LogError(_T("测试数据插入失败!"));
-            return;
-        }
-        
-        // 显示测试数据
-        if (SqlDB::showTestData()) {
-            CadLogger::LogInfo(_T("测试数据查询成功!"));
-        } else {
-            CadLogger::LogError(_T("测试数据查询失败!"));
-        }
-        
-        CadLogger::LogInfo(_T("=== 测试数据操作完成 ==="));
-        
-    } catch (...) {
-        CadLogger::LogError(_T("执行测试数据命令时发生异常!"));
-    }
-}
-
-// 执行查询数据命令
-void DialogCommand::executeQueryDataCommand()
-{
-    try {
-        CadLogger::LogInfo(_T("=== 开始查询测试数据 ==="));
-        
-        // 测试数据库连接
-        if (!SqlDB::testDatabaseConnection()) {
-            CadLogger::LogError(_T("数据库连接失败，无法查询测试数据!"));
-            return;
-        }
-        
-        // 查询测试数据
-        if (SqlDB::queryTestData()) {
-            CadLogger::LogInfo(_T("测试数据查询成功!"));
-        } else {
-            CadLogger::LogError(_T("测试数据查询失败!"));
-        }
-        
-        CadLogger::LogInfo(_T("=== 查询操作完成 ==="));
-        
-    } catch (...) {
-        CadLogger::LogError(_T("执行查询数据命令时发生异常!"));
-    }
-}
-
-// 测试文件上传到SheetManagerServer（使用WinHTTP替代Qt网络功能）
-void DialogCommand::executeFileUploadTestCommand()
-{
-    try {
-        CadLogger::LogInfo(_T("=== 开始测试文件上传到SheetManagerServer ==="));
-        
-        // 测试文件路径
-        CString testFilePath = _T("D:\\Documents\\Drawing1.dwg");
-        
-        // 检查文件是否存在
-        DWORD fileAttributes = GetFileAttributes(testFilePath);
-        if (fileAttributes == INVALID_FILE_ATTRIBUTES) {
-            CadLogger::LogError(_T("测试文件不存在: %s"), testFilePath);
-            CadLogger::LogError(_T("请确保文件路径正确且文件存在!"));
-            return;
-        }
-        
-        // 获取文件信息
-        WIN32_FILE_ATTRIBUTE_DATA fileInfo;
-        if (GetFileAttributesEx(testFilePath, GetFileExInfoStandard, &fileInfo)) {
-            LARGE_INTEGER fileSize;
-            fileSize.LowPart = fileInfo.nFileSizeLow;
-            fileSize.HighPart = fileInfo.nFileSizeHigh;
-            
-            CadLogger::LogInfo(_T("测试文件信息:"));
-            CadLogger::LogInfo(_T("  文件路径: %s"), testFilePath);
-            CadLogger::LogInfo(_T("  文件大小: %lld 字节"), fileSize.QuadPart);
-        }
-        
-        // 使用WinHTTP进行文件上传
-        HINTERNET hSession = WinHttpOpen(L"CAD File Uploader/1.0",
-                                        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-                                        WINHTTP_NO_PROXY_NAME,
-                                        WINHTTP_NO_PROXY_BYPASS,
-                                        0);
-        
-        if (!hSession) {
-            CadLogger::LogError(_T("创建HTTP会话失败!"));
-            return;
-        }
-        
-        HINTERNET hConnect = WinHttpConnect(hSession,
-                                           L"localhost",
-                                           8080,
-                                           0);
-        
-        if (!hConnect) {
-            CadLogger::LogError(_T("连接到服务器失败!"));
-            WinHttpCloseHandle(hSession);
-            return;
-        }
-        
-        HINTERNET hRequest = WinHttpOpenRequest(hConnect,
-                                               L"POST",
-                                               L"/api/upload",
-                                               NULL,
-                                               WINHTTP_NO_REFERER,
-                                               WINHTTP_DEFAULT_ACCEPT_TYPES,
-                                               0);
-        
-        if (!hRequest) {
-            CadLogger::LogError(_T("创建HTTP请求失败!"));
-            WinHttpCloseHandle(hConnect);
-            WinHttpCloseHandle(hSession);
-            return;
-        }
-        
-        // 设置请求头
-        LPCWSTR headers = L"Content-Type: multipart/form-data\r\n";
-        WinHttpAddRequestHeaders(hRequest, headers, -1, WINHTTP_ADDREQ_FLAG_ADD);
-        
-        // 这里需要实现multipart/form-data的构建和发送
-        // 由于篇幅限制，这里只展示框架
-        
-        CadLogger::LogInfo(_T("文件上传请求已发送，等待服务器响应..."));
-        
-        // 清理资源
-        WinHttpCloseHandle(hRequest);
-        WinHttpCloseHandle(hConnect);
-        WinHttpCloseHandle(hSession);
-        
-    } catch (...) {
-        CadLogger::LogError(_T("执行文件上传测试时发生异常!"));
-    }
-} 
 
 // 测试显示登录对话框命令
 void DialogCommand::executeShowLoginDialogCommand()

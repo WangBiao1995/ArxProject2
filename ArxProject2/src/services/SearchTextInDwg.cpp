@@ -10,6 +10,7 @@
 #include <vector>
 #include <algorithm>
 #include <filesystem>
+#include <src/common/Database/NetWorkSqlDb.h>
 
 
 // 静态成员初始化
@@ -96,18 +97,10 @@ bool SearchTextInDwg::buildTextIndexForDrawing(const std::wstring& filePath, std
     acutPrintf(_T("处理文件: 本地路径=%s, 服务器文件名=%s"), 
                filePath.c_str(), serverFileName.c_str());
     
-    // 检查是否需要重新索引
-    //SYSTEMTIME currentModified = getFileLastModified(filePath);
-    //if (!needsReindexing(serverFileName, currentModified)) {
-    //   acutPrintf(_T("文件未修改，跳过索引: %s"), serverFileName.c_str());
-    //    return true;
-    //}
-    
-    // 先删除该文件的旧索引（使用服务器文件名）
-    std::wstring deleteSql = L"DELETE FROM cad_text_index WHERE file_path = '" + serverFileName + L"'";
-    if (!SqlDB::executeQuery(deleteSql, errorMsg)) {
-        errorMsg = L"删除旧索引失败: " + errorMsg;
-        return false;
+    // 先删除该文件的旧索引（使用网络数据库）
+    if (!deleteTextIndexForFile(serverFileName, errorMsg)) {
+        acutPrintf(_T("删除旧索引失败: %s"), errorMsg.c_str());
+        // 继续执行，不返回错误
     }
     
     // 提取文本信息，直接传入正确的文件标识
@@ -116,8 +109,8 @@ bool SearchTextInDwg::buildTextIndexForDrawing(const std::wstring& filePath, std
         return false;
     }
     
-    // 保存到数据库
-    if (!saveTextIndexToDatabase(textList, errorMsg)) {
+    // 保存到网络数据库
+    if (!batchInsertTextIndexes(textList, errorMsg)) {
         return false;
     }
     
@@ -319,23 +312,23 @@ bool SearchTextInDwg::extractTextFromDwg(const std::wstring& localFilePath,
     }
 }
 
-// 保存文本索引到数据库 - 优化版本
+// 保存文本索引到数据库 - 使用网络数据库
 bool SearchTextInDwg::saveTextIndexToDatabase(const std::vector<TextSearchResult>& textList, std::wstring& errorMsg)
 {
     if (textList.empty()) {
         return true;
     }
     
-    acutPrintf(_T("开始批量保存 %d 条文本索引...\n"), (int)textList.size());
+    acutPrintf(_T("开始批量保存 %d 条文本索引到网络数据库...\n"), (int)textList.size());
     
     try {
-        // 使用批量插入方法替代原来的逐条插入
-        if (!SqlDB::batchInsertTextIndex(textList, errorMsg)) {
-            acutPrintf(_T("批量保存文本索引失败: %s\n"), errorMsg.c_str());
+        // 使用网络数据库批量插入
+        if (!batchInsertTextIndexes(textList, errorMsg)) {
+            acutPrintf(_T("批量保存文本索引到网络数据库失败: %s\n"), errorMsg.c_str());
             return false;
         }
         
-        acutPrintf(_T("成功批量保存 %d 条文本索引\n"), (int)textList.size());
+        acutPrintf(_T("成功批量保存 %d 条文本索引到网络数据库\n"), (int)textList.size());
         return true;
         
     } catch (...) {
@@ -367,44 +360,31 @@ std::vector<TextSearchResult> SearchTextInDwg::searchTextInDrawings(const std::w
     }
     
     try {
-        // 构建搜索SQL
-        std::wstring sql = LR"(
-            SELECT file_path, text_content, layer_name, pos_x, pos_y, pos_z, entity_handle, last_modified
-            FROM cad_text_index 
-            WHERE text_content LIKE '%)" + trimmedText + L"%'";
-        
-        // 如果指定了大楼名称，添加文件路径过滤
-        if (!buildingName.empty()) {
-            sql += L" AND file_path LIKE '%" + buildingName + L"%'";
-        }
-        sql += L" ORDER BY file_path, pos_x, pos_y";
-
-        // 执行查询
-        std::vector<std::vector<std::wstring>> queryResults;
-        if (!SqlDB::executeSelectQuery(sql, queryResults, errorMsg)) {
-            acutPrintf(_T("查询执行失败: %s\n"), errorMsg.c_str());
+        // 使用网络数据库搜索文本内容
+        std::vector<CadTextIndex> searchResults;
+        if (!NetWorkSqlDb::searchTextContent(trimmedText, searchResults, errorMsg)) {
+            acutPrintf(_T("搜索文本失败: %s\n"), errorMsg.c_str());
             return results;
         }
         
-        // 将查询结果转换为 TextSearchResult 对象
-        for (const auto& row : queryResults) {
-            if (row.size() >= 8) {  // 确保有足够的列
-                TextSearchResult result;
-                result.filePath = row[0];
-                result.textContent = row[1];
-                result.layerName = row[2];
-                result.posX = _wtof(row[3].c_str());
-                result.posY = _wtof(row[4].c_str());
-                result.posZ = _wtof(row[5].c_str());
-                result.entityHandle = row[6];
-                
-                // 解析时间戳字符串为 SYSTEMTIME
-                // 这里需要根据数据库返回的时间格式进行解析
-                // 暂时设置为零值，后续可以完善时间解析
-                memset(&result.lastModified, 0, sizeof(SYSTEMTIME));
-                
-                results.push_back(result);
+        // 将搜索结果转换为 TextSearchResult 对象
+        for (const auto& index : searchResults) {
+            // 如果指定了大楼名称，进行文件路径过滤
+            if (!buildingName.empty() && index.file_path.find(buildingName) == std::wstring::npos) {
+                continue;
             }
+            
+            TextSearchResult result;
+            result.filePath = index.file_path;
+            result.textContent = index.text_content;
+            result.layerName = index.layer_name;
+            result.posX = index.pos_x;
+            result.posY = index.pos_y;
+            result.posZ = index.pos_z;
+            result.entityHandle = index.entity_handle;
+            memset(&result.lastModified, 0, sizeof(SYSTEMTIME));
+            
+            results.push_back(result);
         }
         
         acutPrintf(_T("搜索文本 '%s' 完成，找到 %d 条结果\n"), trimmedText.c_str(), (int)results.size());
@@ -561,20 +541,31 @@ bool SearchTextInDwg::updateTextIndexIncremental(const std::wstring& buildingNam
     return successCount > 0;
 }
 
-// 清空指定大楼的文本索引
+// 清空指定大楼的文本索引 - 使用网络数据库
 bool SearchTextInDwg::clearTextIndexForBuilding(const std::wstring& buildingName, std::wstring& errorMsg)
 {
-    // 注意：这里的 file_path 现在存储的是服务器文件名，可以直接按建筑名称过滤
-    // 例如：建筑A_结构_v1_设计院_张三_基础平面图.dwg
-    std::wstring sql = L"DELETE FROM cad_text_index WHERE file_path LIKE '%" + buildingName + L"%'";
-    
-    if (!SqlDB::executeQuery(sql, errorMsg)) {
-        errorMsg = L"清空大楼文本索引失败: " + errorMsg;
+    // 使用网络数据库搜索并删除相关记录
+    std::vector<CadTextIndex> indexes;
+    if (!NetWorkSqlDb::searchTextContent(L"", indexes, errorMsg)) {
+        acutPrintf(_T("搜索文本索引失败: %s"), errorMsg.c_str());
         return false;
     }
     
-    acutPrintf(_T("成功清空大楼 %s 的文本索引"), buildingName.c_str());
-    return true;
+    // 过滤出属于指定大楼的记录并删除
+    int deletedCount = 0;
+    for (const auto& index : indexes) {
+        if (index.file_path.find(buildingName) != std::wstring::npos) {
+            std::wstring deleteErrorMsg;
+            if (NetWorkSqlDb::deleteTextIndex(index.id, deleteErrorMsg)) {
+                deletedCount++;
+            } else {
+                acutPrintf(_T("删除索引记录失败 (ID: %d): %s"), index.id, deleteErrorMsg.c_str());
+            }
+        }
+    }
+    
+    acutPrintf(_T("成功清空大楼 %s 的 %d 条文本索引"), buildingName.c_str(), deletedCount);
+    return deletedCount > 0;
 }
 
 // 定位文本功能
@@ -583,56 +574,44 @@ void SearchTextInDwg::locateText()
    acutPrintf(_T("定位文本功能"));
 }
 
-// 添加一个测试方法
+// 添加一个测试方法 - 使用网络数据库
 bool SearchTextInDwg::testDatabaseConnection()
 {
     std::wstring errorMsg;
     
-    // 测试基本查询
-    std::wstring testSql = L"SELECT COUNT(*) FROM cad_text_index";
-    
-    if (!SqlDB::executeQuery(testSql, errorMsg)) {
-        acutPrintf(_T("测试查询失败: %s"), errorMsg.c_str());
+    // 测试网络数据库连接
+    std::vector<CadTextIndex> indexes;
+    if (!NetWorkSqlDb::getTextIndexes(indexes, 1, 1, L"", L"", 0, L"", errorMsg)) {
+        acutPrintf(_T("测试网络数据库连接失败: %s"), errorMsg.c_str());
         return false;
     }
     
-   acutPrintf(_T("数据库连接正常"));
+    acutPrintf(_T("网络数据库连接正常，当前有 %d 条文本索引记录"), (int)indexes.size());
     
-    // 测试直接查询"休息室"
-    std::wstring directSql = L"SELECT text_content FROM cad_text_index WHERE text_content = '休息室'";
-    if (SqlDB::executeQuery(directSql, errorMsg)) {
-       acutPrintf(_T("直接查询'休息室'成功"));
+    // 测试搜索"休息室"
+    std::vector<CadTextIndex> searchResults;
+    if (NetWorkSqlDb::searchTextContent(L"休息室", searchResults, errorMsg)) {
+        acutPrintf(_T("搜索'休息室'成功，找到 %d 条记录"), (int)searchResults.size());
     } else {
-        acutPrintf(_T("直接查询失败: %s"), errorMsg.c_str());
-    }
-    
-    // 测试LIKE查询
-    std::wstring likeSql = L"SELECT text_content FROM cad_text_index WHERE text_content LIKE '%休息室%'";
-    if (SqlDB::executeQuery(likeSql, errorMsg)) {
-       acutPrintf(_T("LIKE查询'%休息室%'成功"));
-    } else {
-        acutPrintf(_T("LIKE查询失败: %s"), errorMsg.c_str());
+        acutPrintf(_T("搜索'休息室'失败: %s"), errorMsg.c_str());
     }
     
     return true;
 }
 
-// 添加一个简化的测试方法
+// 添加一个简化的测试方法 - 使用网络数据库
 bool SearchTextInDwg::testSearchWithParameters()
 {
     std::wstring searchText = L"休息室";
-    std::wstring buildingName = L"";  // 不指定大楼名称
     
-    std::wstring sql = L"SELECT text_content FROM cad_text_index WHERE text_content LIKE '%" + searchText + L"%'";
-    
+    std::vector<CadTextIndex> searchResults;
     std::wstring errorMsg;
-    if (!SqlDB::executeQuery(sql, errorMsg)) {
-        acutPrintf(_T("测试查询执行失败: %s"), errorMsg.c_str());
+    if (!NetWorkSqlDb::searchTextContent(searchText, searchResults, errorMsg)) {
+        acutPrintf(_T("测试搜索执行失败: %s"), errorMsg.c_str());
         return false;
     }
     
-   acutPrintf(_T("测试查询执行成功"));
-   acutPrintf(_T("测试查询找到结果"));
+    acutPrintf(_T("测试搜索执行成功，找到 %d 条记录"), (int)searchResults.size());
     return true;
 }
 
@@ -751,19 +730,76 @@ std::wstring SearchTextInDwg::getServerFileNameFromLocalPath(const std::wstring&
     return normalizedLocalPath;
 }
 
-// 添加数据清理方法
+// 添加数据清理方法 - 使用网络数据库
 bool SearchTextInDwg::cleanupOldPathData(std::wstring& errorMsg)
 {
     acutPrintf(_T("开始清理旧的路径格式数据...\n"));
     
-    // 删除包含完整路径的旧记录（包含 :\ 或 / 的记录）
-    std::wstring cleanupSql = L"DELETE FROM cad_text_index WHERE file_path LIKE '%:\\%' OR file_path LIKE '%/%'";
-    
-    if (!SqlDB::executeQuery(cleanupSql, errorMsg)) {
-        acutPrintf(_T("清理旧数据失败: %s\n"), errorMsg.c_str());
+    // 获取所有文本索引记录
+    std::vector<CadTextIndex> indexes;
+    if (!NetWorkSqlDb::getTextIndexes(indexes, 1, 10000, L"", L"", 0, L"", errorMsg)) {
+        acutPrintf(_T("获取文本索引记录失败: %s\n"), errorMsg.c_str());
         return false;
     }
     
-    acutPrintf(_T("已清理旧的路径格式数据\n"));
+    // 删除包含完整路径的旧记录（包含 :\ 或 / 的记录）
+    int deletedCount = 0;
+    for (const auto& index : indexes) {
+        if (index.file_path.find(L":\\") != std::wstring::npos || 
+            index.file_path.find(L"/") != std::wstring::npos) {
+            std::wstring deleteErrorMsg;
+            if (NetWorkSqlDb::deleteTextIndex(index.id, deleteErrorMsg)) {
+                deletedCount++;
+            } else {
+                acutPrintf(_T("删除旧记录失败 (ID: %d): %s"), index.id, deleteErrorMsg.c_str());
+            }
+        }
+    }
+    
+    acutPrintf(_T("已清理 %d 条旧的路径格式数据\n"), deletedCount);
     return true;
 }
+
+// 添加辅助方法：删除指定文件的文本索引
+bool SearchTextInDwg::deleteTextIndexForFile(const std::wstring& serverFileName, std::wstring& errorMsg)
+{
+    // 获取该文件的所有文本索引记录
+    std::vector<CadTextIndex> indexes;
+    if (!NetWorkSqlDb::getTextIndexesByFile(serverFileName, indexes, errorMsg)) {
+        return false;
+    }
+    
+    // 删除所有相关记录
+    int deletedCount = 0;
+    for (const auto& index : indexes) {
+        std::wstring deleteErrorMsg;
+        if (NetWorkSqlDb::deleteTextIndex(index.id, deleteErrorMsg)) {
+            deletedCount++;
+        } else {
+            acutPrintf(_T("删除文本索引记录失败 (ID: %d): %s"), index.id, deleteErrorMsg.c_str());
+        }
+    }
+    
+    acutPrintf(_T("删除了文件 %s 的 %d 条文本索引记录"), serverFileName.c_str(), deletedCount);
+    return true;
+}
+
+// 批量插入文本索引到网络数据库
+bool SearchTextInDwg::batchInsertTextIndexes(const std::vector<TextSearchResult>& textList, std::wstring& errorMsg)
+{
+    if (textList.empty()) {
+        return true;
+    }
+    
+    acutPrintf(_T("开始批量插入 %d 条文本索引记录到网络数据库...\n"), (int)textList.size());
+    
+    // 直接使用网络数据库批量插入 TextSearchResult
+    if (!NetWorkSqlDb::batchInsertTextIndexes(textList, errorMsg)) {
+        acutPrintf(_T("批量插入文本索引到网络数据库失败: %s\n"), errorMsg.c_str());
+        return false;
+    }
+    
+    acutPrintf(_T("成功批量插入 %d 条文本索引记录到网络数据库\n"), (int)textList.size());
+    return true;
+}
+

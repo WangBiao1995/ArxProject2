@@ -40,20 +40,12 @@ public:
     static void closeDatabase();
     static bool isDatabaseOpen();
     
-    // 测试数据管理
-    static bool createTestTables();
-    static bool insertTestData();
-    static bool showTestData();
-    static bool queryTestData();
-    static bool clearTestData();
-    
     // 图纸数据管理
     // 创建指定名称和结构的表
     static bool createSheetTable(const std::wstring& tableName, const std::wstring& tableStructure);
     static bool saveSheetData(const std::vector<DbSheetData>& sheetList, std::wstring& errorMsg);
     static bool loadSheetData(std::vector<DbSheetData>& sheetList, std::wstring& errorMsg);
-    static bool clearSheetData(std::wstring& errorMsg);
-    
+
     // 通用数据库操作
     static bool executeQuery(const std::wstring& sql, std::wstring& errorMsg);
     static bool executeQuery(const std::wstring& sql);
@@ -61,12 +53,6 @@ public:
     // 添加查询结果返回方法
     static bool executeSelectQuery(const std::wstring& sql, std::vector<std::vector<std::wstring>>& results, std::wstring& errorMsg);
     
-    // 字段管理方法（支持指定表名）
-    static bool addFieldToTable(const std::wstring& tableName, const std::wstring& fieldName, const std::wstring& fieldType, const std::wstring& defaultValue = L"");
-    static bool removeFieldFromTable(const std::wstring& tableName, const std::wstring& fieldName);
-    static bool fieldExists(const std::wstring& tableName, const std::wstring& fieldName);
-    static std::vector<std::wstring> getTableFields(const std::wstring& tableName);
-   
     // 批量插入方法
     static bool executeBatchInsert(const std::wstring& tableName, 
                                   const std::vector<std::wstring>& columns,
@@ -81,12 +67,5 @@ private:
     static SQLHENV m_hEnv;      // 环境句柄
     static SQLHDBC m_hDbc;      // 连接句柄
     
-    // 私有辅助方法
-    static bool createUserTable();
-    static bool createProjectTable();
-    static bool createDrawingTable();
-    static bool insertUserData();
-    static bool insertProjectData();
-    static bool insertDrawingData();
     static std::wstring getLastError();
 };

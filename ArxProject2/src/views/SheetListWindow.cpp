@@ -32,6 +32,7 @@
 #include <sstream>
 #include <iomanip>
 #include <src/services/SearchTextInDwg.h>
+#include <src/common/Database/NetWorkSqlDb.h>
 
 //-----------------------------------------------------------------------------
 IMPLEMENT_DYNAMIC(SheetListWindow, CAdUiBaseDialog)
@@ -1258,46 +1259,46 @@ std::wstring SheetListWindow::GetCurrentTimeString()
 
 void SheetListWindow::LoadDataFromDatabase()
 {
-	CadLogger::LogInfo(_T("开始从数据库加载图纸数据"));
+	CadLogger::LogInfo(_T("开始从网络数据库加载图纸数据"));
 	
 	// 清空现有数据
 	m_sheetDataList.clear();
 	m_originalDataList.clear();
 	
 	try {
-		// 使用SqlDB加载数据
-		std::vector<DbSheetData> dbSheetList;
+		// 使用NetWorkSqlDb加载数据
+		std::vector<SheetInfo> sheetInfoList;
 		std::wstring errorMsg;
 		
-		if (!SqlDB::loadSheetData(dbSheetList, errorMsg)) {
-			CadLogger::LogError(_T("从数据库加载图纸数据失败: %s"), errorMsg.c_str());
+		if (!NetWorkSqlDb::getSheets(sheetInfoList, 1, 1000, L"", L"", L"", L"", L"", L"", 0, L"", errorMsg)) {
+			CadLogger::LogError(_T("从网络数据库加载图纸数据失败: %s"), errorMsg.c_str());
 			// 如果加载失败，使用示例数据
 			PopulateTableData();
 			return;
 		}
 		
 		// 检查是否获取到数据
-		if (dbSheetList.empty()) {
-			CadLogger::LogInfo(_T("数据库中没有图纸数据，使用示例数据"));
+		if (sheetInfoList.empty()) {
+			CadLogger::LogInfo(_T("网络数据库中没有图纸数据，使用示例数据"));
 			// 如果数据库为空，使用示例数据
 			PopulateTableData();
 			return;
 		}
 		
 		// 转换数据格式
-		for (const auto& dbSheet : dbSheetList) {
+		for (const auto& sheetInfo : sheetInfoList) {
 			auto sheetData = std::make_shared<SheetData>();
-			sheetData->name = dbSheet.name;
-			sheetData->buildingName = dbSheet.buildingName;
-			sheetData->specialty = dbSheet.specialty;
-			sheetData->format = dbSheet.format;
-			sheetData->status = dbSheet.status;
-			sheetData->version = dbSheet.version;
-			sheetData->designUnit = dbSheet.designUnit;
-			sheetData->createTime = dbSheet.createTime;
-			sheetData->creator = dbSheet.creator;
-			sheetData->isSelected = dbSheet.isSelected;
-			sheetData->filePath = dbSheet.filePath;
+			sheetData->name = sheetInfo.name;
+			sheetData->buildingName = sheetInfo.building_name;
+			sheetData->specialty = sheetInfo.specialty;
+			sheetData->format = sheetInfo.format;
+			sheetData->status = sheetInfo.status;
+			sheetData->version = sheetInfo.version;
+			sheetData->designUnit = sheetInfo.design_unit;
+			sheetData->createTime = sheetInfo.create_time;
+			sheetData->creator = sheetInfo.creator;
+			sheetData->isSelected = sheetInfo.is_selected;
+			sheetData->filePath = sheetInfo.file_path;
 			
 			m_sheetDataList.push_back(sheetData);
 		}
@@ -1308,7 +1309,7 @@ void SheetListWindow::LoadDataFromDatabase()
 		// 更新表格显示
 		UpdateTableWithFilteredData(m_sheetDataList);
 		
-		CadLogger::LogInfo(_T("成功从数据库加载 %d 条图纸数据"), static_cast<int>(m_sheetDataList.size()));
+		CadLogger::LogInfo(_T("成功从网络数据库加载 %d 条图纸数据"), static_cast<int>(m_sheetDataList.size()));
 		
 	} catch (...) {
 		CadLogger::LogError(_T("加载图纸数据时发生异常"));
@@ -1319,39 +1320,33 @@ void SheetListWindow::LoadDataFromDatabase()
 
 void SheetListWindow::SaveDataToDatabase()
 {
-	CadLogger::LogInfo(_T("开始保存图纸数据到数据库"));
+	CadLogger::LogInfo(_T("开始保存图纸数据到网络数据库"));
 	
 	try {
-		// 转换数据格式
-		std::vector<DbSheetData> dbSheetList;
-		
+		// 转换数据格式并保存到网络数据库
 		for (const auto& sheet : m_sheetDataList) {
-			DbSheetData dbSheet;
-			dbSheet.id = 0; // 数据库自动生成ID
-			dbSheet.name = sheet->name;
-			dbSheet.buildingName = sheet->buildingName;
-			dbSheet.specialty = sheet->specialty;
-			dbSheet.format = sheet->format;
-			dbSheet.status = sheet->status;
-			dbSheet.version = sheet->version;
-			dbSheet.designUnit = sheet->designUnit;
-			dbSheet.createTime = sheet->createTime;
-			dbSheet.creator = sheet->creator;
-			dbSheet.isSelected = sheet->isSelected;
-			dbSheet.filePath = sheet->filePath;
+			SheetInfo sheetInfo;
+			sheetInfo.name = sheet->name;
+			sheetInfo.building_name = sheet->buildingName;
+			sheetInfo.specialty = sheet->specialty;
+			sheetInfo.format = sheet->format;
+			sheetInfo.status = sheet->status;
+			sheetInfo.version = sheet->version;
+			sheetInfo.design_unit = sheet->designUnit;
+			sheetInfo.create_time = sheet->createTime;
+			sheetInfo.creator = sheet->creator;
+			sheetInfo.is_selected = sheet->isSelected;
+			sheetInfo.file_path = sheet->filePath;
 			
-			dbSheetList.push_back(dbSheet);
+			// 创建或更新图纸信息
+			SheetInfo result;
+			std::wstring errorMsg;
+			if (!NetWorkSqlDb::createSheet(sheetInfo, result, errorMsg)) {
+				CadLogger::LogError(_T("保存图纸数据到网络数据库失败: %s"), errorMsg.c_str());
+			}
 		}
 		
-		// 保存到数据库
-		std::wstring errorMsg;
-		if (!SqlDB::saveSheetData(dbSheetList, errorMsg)) {
-			CadLogger::LogError(_T("保存图纸数据到数据库失败: %s"), errorMsg.c_str());
-			AfxMessageBox(_T("保存数据失败！"));
-			return;
-		}
-		
-		CadLogger::LogInfo(_T("成功保存 %d 条图纸数据到数据库"), static_cast<int>(dbSheetList.size()));
+		CadLogger::LogInfo(_T("成功保存 %d 条图纸数据到网络数据库"), static_cast<int>(m_sheetDataList.size()));
 		
 	} catch (...) {
 		CadLogger::LogError(_T("保存图纸数据时发生异常"));
@@ -1361,42 +1356,9 @@ void SheetListWindow::SaveDataToDatabase()
 
 bool SheetListWindow::CreateSheetTable()
 {
-	CadLogger::LogInfo(_T("开始创建图纸数据表"));
-	
-	try {
-		// 定义表结构
-		std::wstring tableStructure = LR"(
-			(
-				id SERIAL PRIMARY KEY,
-				name VARCHAR(255) NOT NULL,
-				building_name VARCHAR(255),
-				specialty VARCHAR(100),
-				format VARCHAR(50),
-				status VARCHAR(50),
-				version VARCHAR(20),
-				design_unit VARCHAR(255),
-				create_time VARCHAR(50),
-				creator VARCHAR(100),
-				is_selected BOOLEAN DEFAULT FALSE,
-				file_path TEXT,
-				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-				updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-			)
-		)";
-		
-		// 创建表
-		if (!SqlDB::createSheetTable(L"sheet_data", tableStructure)) {
-			CadLogger::LogError(_T("创建图纸数据表失败"));
-			return false;
-		}
-		
-		CadLogger::LogInfo(_T("图纸数据表创建成功"));
-		return true;
-		
-	} catch (...) {
-		CadLogger::LogError(_T("创建图纸数据表时发生异常"));
-		return false;
-	}
+	// 使用网络数据库时不需要创建表，表结构由服务器管理
+	CadLogger::LogInfo(_T("使用网络数据库，无需创建本地表"));
+	return true;
 }
 
 //-----------------------------------------------------------------------------
