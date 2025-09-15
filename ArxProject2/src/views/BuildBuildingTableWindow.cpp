@@ -30,6 +30,7 @@
 #include <sstream>
 #include <iomanip>
 #include <src/common/Database/NetWorkSqlDb.h>
+#include <set>
 
 //-----------------------------------------------------------------------------
 IMPLEMENT_DYNAMIC(BuildBuildingTableWindow, CAdUiBaseDialog)
@@ -297,32 +298,68 @@ void BuildBuildingTableWindow::populateTableFromData()
 //-----------------------------------------------------------------------------
 void BuildBuildingTableWindow::saveDataToDatabase()
 {
-    // 使用网络数据库保存建筑信息
+    // 先获取服务器上的现有数据
+    std::vector<BuildingInfo> serverBuildings;
+    std::wstring errorMsg;
+    
+    if (!NetWorkSqlDb::getBuildings(serverBuildings, 1, 10000, L"", L"", L"", L"", errorMsg)) {
+        CString errMsg(errorMsg.c_str());
+        AfxMessageBox(_T("无法获取服务器数据：") + errMsg);
+        CadLogger::LogError(_T("Failed to get server buildings: %s"), errMsg);
+        return;
+    }
+    
+    // 创建服务器数据ID的集合，用于快速查找
+    std::set<int> serverIds;
+    for (const auto& building : serverBuildings) {
+        serverIds.insert(building.id);
+    }
+    
+    // 找出本地新增的数据（ID不在服务器数据中的）
+    int newDataCount = 0;
     int successCount = 0;
     
     for (const auto& data : m_buildingDataList) {
-        BuildingInfo buildingInfo;
-        buildingInfo.building_name = data.buildingName;
-        buildingInfo.address = data.address;
-        buildingInfo.total_area = data.totalArea;
-        buildingInfo.floors = data.floors;
-        buildingInfo.design_unit = data.designUnit;
-        buildingInfo.create_time = data.createTime;
-        buildingInfo.creator = data.creator;
-        
-        BuildingInfo result;
-        std::wstring errorMsg;
-        if (NetWorkSqlDb::createBuilding(buildingInfo, result, errorMsg)) {
-            successCount++;
-        } else {
-            CadLogger::LogError(_T("Failed to save building data: %s"), errorMsg.c_str());
+        // 如果本地数据的ID不在服务器ID集合中，说明是新增的
+        if (serverIds.find(data.id) == serverIds.end()) {
+            newDataCount++;
+            
+            BuildingInfo buildingInfo;
+            buildingInfo.building_name = data.buildingName;
+            buildingInfo.address = data.address;
+            buildingInfo.total_area = data.totalArea;
+            buildingInfo.floors = data.floors;
+            buildingInfo.design_unit = data.designUnit;
+            buildingInfo.create_time = data.createTime;
+            buildingInfo.creator = data.creator;
+            
+            BuildingInfo result;
+            std::wstring createErrorMsg;
+            if (NetWorkSqlDb::createBuilding(buildingInfo, result, createErrorMsg)) {
+                successCount++;
+                CadLogger::LogInfo(_T("成功上传新增建筑数据: %s (ID: %d)"), data.buildingName.c_str(), data.id);
+            } else {
+                CString errMsg(createErrorMsg.c_str());
+                CadLogger::LogError(_T("上传新增建筑数据失败: %s, 错误: %s"), data.buildingName.c_str(), errMsg);
+            }
         }
     }
     
+    // 显示上传结果
     CString msg;
-    msg.Format(_T("成功保存 %d/%d 条记录到网络数据库"), successCount, static_cast<int>(m_buildingDataList.size()));
-    AfxMessageBox(msg);
-    CadLogger::LogInfo(_T("Saved building data: %s"), msg);
+    if (newDataCount > 0) {
+        msg.Format(_T("成功上传 %d/%d 条新增记录到网络数据库"), successCount, newDataCount);
+        AfxMessageBox(msg);
+        CadLogger::LogInfo(_T("上传新增建筑数据: %s"), msg);
+        
+        // 如果有成功上传的数据，重新加载数据以获取服务器分配的ID
+        if (successCount > 0) {
+            loadDataFromDatabase();
+        }
+    } else {
+        msg = _T("没有新增数据需要上传");
+        CadLogger::LogInfo(_T("上传建筑数据: %s"), msg);
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -438,15 +475,26 @@ void BuildBuildingTableWindow::insertRow()
         selectedItem = m_buildingTable.GetItemCount();
     }
     
-    // 插入新行
-    int newItem = m_buildingTable.InsertItem(selectedItem, _T(""));
-    CString currentTimeStr(getCurrentTimeString().c_str());
-    m_buildingTable.SetItemText(newItem, 5, currentTimeStr);
-    m_buildingTable.SetItemText(newItem, 6, _T("系统用户"));
+    // 创建新的建筑数据
+    BuildingData newData;
+    newData.id = 0; // 新数据ID为0，保存到数据库时会自动分配
+    newData.buildingName = L""; // 空字符串，用户需要编辑
+    newData.address = L"";
+    newData.totalArea = L"";
+    newData.floors = L"";
+    newData.designUnit = L"";
+    newData.createTime = getCurrentTimeString();
+    newData.creator = L"系统用户";
     
-    // 选中新行并开始编辑
-    m_buildingTable.SetItemState(newItem, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
-    m_buildingTable.EditLabel(newItem);
+    // 将新数据添加到数据列表
+    m_buildingDataList.insert(m_buildingDataList.begin() + selectedItem, newData);
+    
+    // 重新填充表格以保持数据同步
+    populateTableFromData();
+    
+    // 选中新插入的行并开始编辑第一列
+    m_buildingTable.SetItemState(selectedItem, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+    startEdit(selectedItem, 0); // 开始编辑第一列（大楼名称）
 }
 
 //-----------------------------------------------------------------------------
@@ -458,18 +506,42 @@ void BuildBuildingTableWindow::deleteRow()
         return;
     }
     
+    // 获取要删除的数据ID
+    DWORD_PTR dataId = m_buildingTable.GetItemData(selectedItem);
+    if (dataId == 0) {
+        AfxMessageBox(_T("无法获取要删除的数据ID"));
+        return;
+    }
+    
     CString msg;
     msg.Format(_T("确定要删除第 %d 行吗？"), selectedItem + 1);
     if (AfxMessageBox(msg, MB_YESNO | MB_ICONQUESTION) == IDYES) {
-        m_buildingTable.DeleteItem(selectedItem);
-        
-        // 选中下一行或上一行
-        int itemCount = m_buildingTable.GetItemCount();
-        if (itemCount > 0) {
-            if (selectedItem >= itemCount) {
-                selectedItem = itemCount - 1;
+        // 先从数据库删除
+        std::wstring errorMsg;
+        if (NetWorkSqlDb::deleteBuilding(static_cast<int>(dataId), errorMsg)) {
+            // 数据库删除成功，从数据列表中删除对应数据
+            if (selectedItem >= 0 && selectedItem < static_cast<int>(m_buildingDataList.size())) {
+                m_buildingDataList.erase(m_buildingDataList.begin() + selectedItem);
             }
-            m_buildingTable.SetItemState(selectedItem, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+            
+            // 重新填充表格以保持数据同步
+            populateTableFromData();
+            
+            // 选中下一行或上一行
+            int itemCount = m_buildingTable.GetItemCount();
+            if (itemCount > 0) {
+                if (selectedItem >= itemCount) {
+                    selectedItem = itemCount - 1;
+                }
+                m_buildingTable.SetItemState(selectedItem, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+            }
+            
+            CadLogger::LogInfo(_T("成功删除建筑信息，ID: %d"), static_cast<int>(dataId));
+        } else {
+            // 数据库删除失败，显示错误信息
+            CString errMsg(errorMsg.c_str());
+            AfxMessageBox(_T("删除失败：") + errMsg);
+            CadLogger::LogError(_T("删除建筑信息失败，ID: %d, 错误: %s"), static_cast<int>(dataId), errMsg);
         }
     }
 }
@@ -811,6 +883,23 @@ void BuildBuildingTableWindow::endEdit(bool bSave)
         CString strText;
         m_pEditCtrl->GetWindowText(strText);
         m_buildingTable.SetItemText(m_nEditItem, m_nEditSubItem, strText);
+        
+        // 同步更新数据列表
+        if (m_nEditItem >= 0 && m_nEditItem < static_cast<int>(m_buildingDataList.size())) {
+            BuildingData& data = m_buildingDataList[m_nEditItem];
+            std::wstring newValue(strText);
+            
+            // 根据列索引更新对应字段
+            switch (m_nEditSubItem) {
+                case 0: data.buildingName = newValue; break;
+                case 1: data.address = newValue; break;
+                case 2: data.totalArea = newValue; break;
+                case 3: data.floors = newValue; break;
+                case 4: data.designUnit = newValue; break;
+                case 5: data.createTime = newValue; break;
+                case 6: data.creator = newValue; break;
+            }
+        }
         
         // 记录编辑操作
         CadLogger::LogInfo(_T("表格编辑: 行%d 列%d 新值: %s"), 
