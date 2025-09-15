@@ -9,6 +9,8 @@
 #include <string>
 #include "nlohmann/json.hpp"
 #include <src/common/Database/NetWorkSqlDb.h>
+#include <src/common/Interaction/SelectUtil.h>
+#include "SetComponentLabel.h"
 using json = nlohmann::json;
 
 #pragma comment(lib, "winhttp.lib") // 链接 WinHTTP 库
